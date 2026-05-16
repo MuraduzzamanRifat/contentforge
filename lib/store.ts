@@ -12,6 +12,25 @@ import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./s
 
 export type Section = "workflow" | "sheet" | "production" | "publish" | "calendar" | "analytics" | "settings";
 
+/**
+ * True when a board carries no real operator content (no rows, or every row
+ * is an untitled IDEA stub). Used by the persist `merge` below: a stale/empty
+ * localStorage board must never shadow the 260-row seed — otherwise a browser
+ * that opened an earlier build (or a fresh deploy) shows one blank row instead
+ * of the plan. A board with any titled/hooked/scripted or non-IDEA row is
+ * "real" and is kept as-is.
+ */
+export const isBlankBoard = (rows: Content[] | undefined): boolean =>
+  !rows ||
+  rows.length === 0 ||
+  rows.every(
+    (r) =>
+      !r.title?.trim() &&
+      !r.hook?.trim() &&
+      !r.script?.trim() &&
+      (!r.status || r.status === "IDEA"),
+  );
+
 interface State {
   rows: Content[];
   selectedId: string | null;
@@ -422,6 +441,20 @@ export const useStore = create<State & Actions>()(
         viewerLang: s.viewerLang,
         viewerRole: s.viewerRole,
       }),
+      /**
+       * Replaces zustand's default shallow merge. Same behavior
+       * (persisted slice over the initial state) PLUS one guard: if the
+       * persisted board is blank (stale/empty localStorage from an earlier
+       * build, or a fresh deploy), fall back to the 260-row seed instead of
+       * showing one empty row. A real board is always kept untouched, and
+       * GitHub-as-DB still wins afterward (BoardSync calls replaceBoard with
+       * the remote board on mount when configured).
+       */
+      merge: (persisted, current) => {
+        const merged = { ...current, ...(persisted as Partial<State>) };
+        if (isBlankBoard(merged.rows)) merged.rows = seedClone();
+        return merged;
+      },
     }
   )
 );
