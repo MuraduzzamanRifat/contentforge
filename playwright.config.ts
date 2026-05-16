@@ -17,10 +17,14 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // Reuse a running dev server if present, otherwise spin one up.
+  // IMPORTANT: bind the dev server to the SAME port the config polls — bare
+  // `next dev` picks 3000/first-free, but `url` is :${PORT}, so on CI (where
+  // there's no pre-running server) Playwright would wait forever. Pass the
+  // port explicitly and give Next 16's first compile a generous timeout.
   webServer: {
-    command: `pnpm dev`,
+    command: `pnpm exec next dev --port ${PORT}`,
     url: HOST,
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 120_000,
   },
 });
