@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { BRAND, SPECIES, PRODUCTION, ANIMATION } from "@/lib/project-config";
 
 interface Connections {
+  provider: "claude-subscription" | "openai" | "claude-api" | "none";
+  providerLabel: string;
   claude: { available: boolean; auth: "subscription" | "api-key" | "none"; accountHint?: string };
   gemini: { available: boolean };
   googleFlow: { programmatic: boolean };
@@ -56,11 +58,8 @@ export function SettingsView() {
     URL.revokeObjectURL(url);
   };
 
-  const claudeLabel =
-    conn?.claude.auth === "subscription" ? "Pro / Max subscription"
-    : conn?.claude.auth === "api-key" ? "ANTHROPIC_API_KEY (paid)"
-    : "Not connected";
-  const claudeOk = conn?.claude.auth !== "none";
+  const aiLabel = conn?.providerLabel ?? "Not connected";
+  const aiOk = !!conn && conn.provider !== "none";
 
   return (
     <div className="h-full space-y-4 overflow-auto p-4">
@@ -76,7 +75,7 @@ export function SettingsView() {
           </Button>
         </div>
         <div className="space-y-2">
-          <ConnRow ok={claudeOk} label="Claude" value={claudeLabel} hint="Run `claude` once in a terminal to sign into your Pro/Max session. Or add ANTHROPIC_API_KEY to .env.local." />
+          <ConnRow ok={aiOk} label="AI provider" value={aiLabel} hint="OPENAI_API_KEY (simplest — works on Vercel), or Claude subscription / CLAUDE_CODE_OAUTH_TOKEN locally, or ANTHROPIC_API_KEY." />
           <ConnRow ok={!!conn?.gemini.available} label="Gemini / Veo" value={conn?.gemini.available ? "GEMINI_API_KEY set" : "Not configured"} hint="Add GEMINI_API_KEY to .env.local for programmatic Veo. Otherwise Google Flow opens in a new tab." />
           <ConnRow ok={false} label="YouTube" value="Manual upload" hint="You upload videos yourself; ContentForge stores the video ID after the fact." />
         </div>

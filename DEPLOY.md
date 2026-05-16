@@ -5,24 +5,36 @@ ContentForge is a Next.js 16 app with **server-side API routes** (`/api/ai/*`,
 (static-only — every AI feature would be dead). The host is **Vercel** (free
 tier, native Next.js, auto-deploys from GitHub).
 
-## Fastest path — connect the repo in Vercel (≈2 min, one-time)
+## Fastest path — Vercel + OpenAI key (≈2 min, recommended)
+
+No tunnel, no Claude self-host. Always-on. The AI routes are provider-agnostic
+(`lib/llm.ts`): with no Claude session present (true on Vercel serverless) and
+an `OPENAI_API_KEY` set, generation uses **OpenAI** automatically.
 
 1. https://vercel.com → **Add New… → Project** → import
    `MuraduzzamanRifat/contentforge`.
-2. Framework is auto-detected (Next.js). Leave build/output defaults — the
-   `build` script (`cross-env NODE_ENV=production next build`) is used as-is.
+2. Framework auto-detected (Next.js). Leave defaults — the `build` script
+   (`cross-env NODE_ENV=production next build`) is used as-is.
 3. **Environment Variables** → add:
-   - `ANTHROPIC_API_KEY` — required for the AI routes. The Claude *subscription*
-     path (Agent SDK spawning the `claude` binary) **cannot run on serverless**;
-     on Vercel the routes use the API key. Without it the whole UI still works
-     and AI buttons return an honest "not connected" (HTTP 412), not a crash.
-   - `GEMINI_API_KEY` — optional; only if you later wire programmatic Veo
-     (current Google Flow path is manual, no key needed).
-4. **Deploy.** Every future `git push` to `main` auto-deploys and you get a
-   stable `https://contentforge-*.vercel.app` URL.
+   - `OPENAI_API_KEY` — from <https://platform.openai.com/api-keys>. This makes
+     every AI feature (script, translate, review summary, SEO) work.
+   - `OPENAI_MODEL` — optional, defaults to `gpt-4o`.
+   - `GEMINI_API_KEY` — optional; only for programmatic Veo (Google Flow is
+     manual by default).
+   - *(Skip `ANTHROPIC_API_KEY` unless you specifically want Claude-via-API.)*
+   - With **no** AI key the UI/workflow still works; AI buttons return an
+     honest "not connected" (HTTP 412), not a crash.
+4. **Deploy.** Every future `git push` to `main` auto-deploys → stable
+   `https://contentforge-*.vercel.app` URL.
 
 That's it — Vercel's GitHub integration is the auto-deploy; no Actions secret
-needed for this path.
+needed.
+
+**Provider precedence** (`resolveProvider`, unit-tested): Claude subscription
+(local self-host only) → `OPENAI_API_KEY` → `ANTHROPIC_API_KEY` → none. On
+Vercel there's no Claude session, so OpenAI is used. To use your Claude
+*subscription* instead (free, but needs an always-on box you control), see
+[SELFHOST.md](SELFHOST.md).
 
 ## Fully GitHub-Actions-driven path (optional)
 

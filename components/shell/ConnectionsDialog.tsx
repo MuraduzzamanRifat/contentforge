@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Connections {
+  provider: "claude-subscription" | "openai" | "claude-api" | "none";
+  providerLabel: string;
   claude: { available: boolean; auth: "subscription" | "api-key" | "none"; accountHint?: string };
   gemini: { available: boolean };
   googleFlow: { programmatic: boolean };
@@ -31,10 +33,10 @@ export function ConnectionsDialog({ open, onClose }: { open: boolean; onClose: (
 
   if (!open) return null;
 
-  const claudeStatus =
-    conn?.claude.auth === "subscription" ? { label: "Connected · Pro / Max subscription", tone: "ok" as const }
-    : conn?.claude.auth === "api-key" ? { label: "Connected · API key (paid)", tone: "ok" as const }
-    : { label: "Not connected", tone: "warn" as const };
+  const aiStatus =
+    conn && conn.provider !== "none"
+      ? { label: `Connected · ${conn.providerLabel}`, tone: "ok" as const }
+      : { label: "Not connected", tone: "warn" as const };
 
   const flowStatus =
     conn?.googleFlow.programmatic ? { label: "Connected · Gemini API (Veo programmatic)", tone: "ok" as const }
@@ -56,34 +58,35 @@ export function ConnectionsDialog({ open, onClose }: { open: boolean; onClose: (
         </header>
 
         <div className="space-y-4 px-5 py-5">
-          {/* Claude */}
+          {/* AI provider */}
           <Section
             icon={<Sparkles className="h-4 w-4 text-primary" />}
-            title="Claude"
-            subtitle="Used for: script generation, description writing, brief enrichment"
-            status={claudeStatus}
+            title="AI provider"
+            subtitle="Used for: script generation, KO↔EN translation, review summary, SEO"
+            status={aiStatus}
           >
             <div className="space-y-2 text-[12px] text-muted-foreground">
-              <p>
-                Two ways to connect, tried in order:
-              </p>
+              <p>Resolved in this order (first available wins):</p>
               <ol className="ml-4 list-decimal space-y-1.5">
                 <li>
-                  <strong className="text-foreground">Claude Pro / Max subscription (preferred — uses your subscription quota, not paid per call).</strong>{" "}
-                  Run <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">claude</code> once in any terminal to sign into your Claude account. ContentForge auto-detects the session.
+                  <strong className="text-foreground">Claude Pro/Max subscription</strong> — free; only where the Claude runtime exists (your machine / self-host). Run{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">claude</code> once, or set{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">CLAUDE_CODE_OAUTH_TOKEN</code>.
                 </li>
                 <li>
-                  <strong className="text-foreground">ANTHROPIC_API_KEY</strong> in <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">.env.local</code>{" "}
-                  (fallback, paid per call).
+                  <strong className="text-foreground">OPENAI_API_KEY</strong> — the simple deploy path. Works on Vercel serverless (no tunnel, always-on). Add it in the Vercel project env and the app is fully live.
+                </li>
+                <li>
+                  <strong className="text-foreground">ANTHROPIC_API_KEY</strong> — Claude via paid API.
                 </li>
               </ol>
               <a
-                href="https://docs.claude.com/en/api/agent-sdk/overview"
+                href="https://platform.openai.com/api-keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-primary hover:underline"
               >
-                Claude Agent SDK docs <ExternalLink className="h-3 w-3" />
+                Get an OpenAI key <ExternalLink className="h-3 w-3" />
               </a>
             </div>
           </Section>

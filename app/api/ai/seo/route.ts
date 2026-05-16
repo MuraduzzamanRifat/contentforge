@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callClaude, NoClaudeAuthError } from "@/lib/claude-call";
+import { callLLM, NoProviderError } from "@/lib/llm";
 import { buildSeoPrompt, SEO_PROMPT_VERSION } from "@/lib/prompts/seo";
 import type { Track } from "@/lib/types";
 
@@ -53,7 +53,7 @@ ${body.script}
 Output the metadata JSON.`;
 
   try {
-    const r = await callClaude(buildSeoPrompt(), user, 2000);
+    const r = await callLLM(buildSeoPrompt(), user, 2000);
     let meta: unknown;
     try {
       meta = extractJson(r.text);
@@ -63,11 +63,11 @@ Output the metadata JSON.`;
         { status: 502 }
       );
     }
-    return NextResponse.json({ meta, auth: r.auth, promptVersion: SEO_PROMPT_VERSION });
+    return NextResponse.json({ meta, provider: r.provider, promptVersion: SEO_PROMPT_VERSION });
   } catch (err: unknown) {
-    if (err instanceof NoClaudeAuthError) {
+    if (err instanceof NoProviderError) {
       return NextResponse.json(
-        { error: "No Claude auth", hint: "Run `claude` locally or set ANTHROPIC_API_KEY in .env.local." },
+        { error: "No AI provider", hint: "Set OPENAI_API_KEY (works on Vercel), or run `claude` locally / set ANTHROPIC_API_KEY." },
         { status: 412 }
       );
     }

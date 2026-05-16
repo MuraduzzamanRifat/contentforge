@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callClaude, NoClaudeAuthError } from "@/lib/claude-call";
+import { callLLM, NoProviderError } from "@/lib/llm";
 import { buildReviewSummaryPrompt, REVIEW_SUMMARY_PROMPT_VERSION } from "@/lib/prompts/review-summary";
 
 export const runtime = "nodejs";
@@ -21,16 +21,16 @@ export async function POST(req: NextRequest) {
   const user = `<script_in>\n${body.title ? `TITLE: ${body.title}\n` : ""}${script}\n</script_in>\n\nProduce the Korean review summary.`;
 
   try {
-    const r = await callClaude(buildReviewSummaryPrompt(), user, 1500);
+    const r = await callLLM(buildReviewSummaryPrompt(), user, 1500);
     return NextResponse.json({
       summary: r.text,
-      auth: r.auth,
+      provider: r.provider,
       promptVersion: REVIEW_SUMMARY_PROMPT_VERSION,
     });
   } catch (err: unknown) {
-    if (err instanceof NoClaudeAuthError) {
+    if (err instanceof NoProviderError) {
       return NextResponse.json(
-        { error: "No Claude auth", hint: "Run `claude` locally or set ANTHROPIC_API_KEY in .env.local." },
+        { error: "No AI provider", hint: "Set OPENAI_API_KEY (works on Vercel), or run `claude` locally / set ANTHROPIC_API_KEY." },
         { status: 412 }
       );
     }

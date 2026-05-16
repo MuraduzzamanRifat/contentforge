@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 import { waitingOn, workflowColumn } from "@/lib/workflow";
 
 interface ConnState {
-  claude: { auth: "subscription" | "api-key" | "none" };
+  provider: "claude-subscription" | "openai" | "claude-api" | "none";
+  providerLabel: string;
 }
 
 const NAV: { id: Section; label: string; icon: typeof Table2 }[] = [
@@ -58,10 +59,11 @@ export function Topbar() {
     fetch("/api/connections").then((r) => r.json()).then(setConn).catch(() => setConn(null));
   }, [open]);
 
-  const claudeOk = conn?.claude.auth !== "none";
-  const claudeLabel =
-    conn?.claude.auth === "subscription" ? "Pro / Max"
-    : conn?.claude.auth === "api-key" ? "API key"
+  const aiOk = !!conn && conn.provider !== "none";
+  const aiShort =
+    conn?.provider === "claude-subscription" ? "Claude Pro/Max"
+    : conn?.provider === "openai" ? "OpenAI"
+    : conn?.provider === "claude-api" ? "Claude API"
     : "Not connected";
 
   const badge = (id: Section) =>
@@ -135,14 +137,14 @@ export function Topbar() {
           onClick={() => setOpen(true)}
           className={cn(
             "flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-[12px] font-medium transition hover:bg-muted",
-            claudeOk ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"
+            aiOk ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"
           )}
-          title="Connections"
+          title={conn?.providerLabel ?? "Connections"}
           aria-label="Open Connections panel"
         >
-          {claudeOk ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Plug className="h-3.5 w-3.5" />}
-          <span className="hidden lg:inline">Claude</span>
-          <span className="hidden text-[10px] opacity-80 lg:inline">· {claudeLabel}</span>
+          {aiOk ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Plug className="h-3.5 w-3.5" />}
+          <span className="hidden lg:inline">AI</span>
+          <span className="hidden text-[10px] opacity-80 lg:inline">· {aiShort}</span>
         </button>
 
         <Button
