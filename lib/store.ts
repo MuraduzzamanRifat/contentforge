@@ -27,6 +27,10 @@ interface State {
   viewerLang: Lang;
   /** Which side of the conversation "you" are when composing. */
   viewerRole: Role;
+
+  // --- GitHub-as-DB sync (transient, NOT persisted to localStorage) ---
+  syncStatus: "local-only" | "loading" | "synced" | "saving" | "error";
+  lastSyncedAt: string | null;
 }
 
 interface Actions {
@@ -46,6 +50,10 @@ interface Actions {
   bulkPatch: (ids: string[], p: ContentPatch) => void;
   bulkRemove: (ids: string[]) => void;
   reset: () => void;
+
+  /** Hydrate the collaborative slice from the GitHub board (remote = truth). */
+  replaceBoard: (b: { rows: Content[]; comments: Record<string, ReviewComment[]> }) => void;
+  setSyncStatus: (s: State["syncStatus"], at?: string) => void;
 
   // Workflow stage transitions
   sendToReview: (id: string) => void;
@@ -89,6 +97,13 @@ export const useStore = create<State & Actions>()(
       comments: {},
       viewerLang: "en",
       viewerRole: "operator",
+      syncStatus: "local-only",
+      lastSyncedAt: null,
+
+      replaceBoard: (b) =>
+        set({ rows: b.rows, comments: b.comments ?? {}, selectedId: null, selectedIds: new Set() }),
+      setSyncStatus: (syncStatus, at) =>
+        set(at !== undefined ? { syncStatus, lastSyncedAt: at } : { syncStatus }),
 
       select: (id) => set({ selectedId: id }),
       toggleSelect: (id) =>

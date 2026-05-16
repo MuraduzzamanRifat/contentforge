@@ -1,7 +1,8 @@
 "use client";
 
 import {
-  Search, Sun, Moon, Plug, CheckCircle2, Sparkles, Settings,
+  Search, Sun, Moon, Plug, CheckCircle2, Sparkles, Settings, Loader2,
+  Cloud, CloudCheck, CloudOff, CloudAlert,
   Workflow as WorkflowIcon, Table2, Clapperboard, Megaphone, Calendar, BarChart3,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -37,6 +38,8 @@ export function Topbar() {
   const productionCount = useStore(
     (s) => s.rows.filter((r) => ((r.status === "APPROVED" && r.productionLocked) || !!r.production) && !r.production?.finalizedAt).length
   );
+  const syncStatus = useStore((s) => s.syncStatus);
+  const lastSyncedAt = useStore((s) => s.lastSyncedAt);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [conn, setConn] = useState<ConnState | null>(null);
@@ -131,6 +134,33 @@ export function Topbar() {
             /
           </kbd>
         </div>
+
+        {/* GitHub-as-DB sync status */}
+        {(() => {
+          const map = {
+            "local-only": { Icon: CloudOff, cls: "text-muted-foreground", label: "Local only" },
+            loading:      { Icon: Loader2,  cls: "text-muted-foreground", label: "Loading…" },
+            saving:       { Icon: Cloud,    cls: "text-amber-600 dark:text-amber-400", label: "Saving…" },
+            synced:       { Icon: CloudCheck, cls: "text-emerald-600 dark:text-emerald-400", label: "Synced" },
+            error:        { Icon: CloudAlert, cls: "text-red-600 dark:text-red-400", label: "Sync error" },
+          }[syncStatus];
+          const Icon = map.Icon;
+          const when = lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+          return (
+            <span
+              className={cn("hidden h-9 shrink-0 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-[11px] font-medium md:flex", map.cls)}
+              title={
+                syncStatus === "local-only"
+                  ? "GitHub persistence not configured — data is per-browser. Set GITHUB_TOKEN + GITHUB_BOARD_REPO."
+                  : syncStatus === "synced" && when ? `Board synced to GitHub at ${when}`
+                  : map.label
+              }
+            >
+              <Icon className={cn("h-3.5 w-3.5", syncStatus === "loading" && "animate-spin")} />
+              <span className="hidden lg:inline">{map.label}</span>
+            </span>
+          );
+        })()}
 
         <button
           type="button"

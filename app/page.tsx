@@ -1,6 +1,7 @@
 "use client";
 
 import { Topbar } from "@/components/shell/Topbar";
+import { BoardSync } from "@/components/shell/BoardSync";
 import { KpiStrip } from "@/components/sheet/KpiStrip";
 import { Toolbar } from "@/components/sheet/Toolbar";
 import { ContentSheet } from "@/components/sheet/ContentSheet";
@@ -20,6 +21,7 @@ export default function Page() {
     // No left sidebar — nav lives in the Topbar so every board uses the full
     // page width. Single full-height column: Topbar + the active section.
     <div className="flex h-screen w-screen flex-col overflow-hidden">
+      <BoardSync />
       <Topbar />
 
       <main className="flex flex-1 flex-col overflow-hidden">

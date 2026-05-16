@@ -33,6 +33,8 @@ export interface Connections {
   };
   gemini: { available: boolean };
   googleFlow: { programmatic: boolean };
+  /** GitHub-as-DB shared board persistence. */
+  board: { configured: boolean; repo?: string };
 }
 
 function detectClaudeSubscription(): { ok: boolean; accountHint?: string } {
@@ -90,11 +92,17 @@ export function detectConnections(): Connections {
     : provider === "none" ? "none"
     : "api-key";
 
+  const boardRepo =
+    process.env.GITHUB_TOKEN && process.env.GITHUB_BOARD_REPO
+      ? process.env.GITHUB_BOARD_REPO
+      : undefined;
+
   return {
     provider,
     providerLabel,
     claude: { available: provider !== "none", auth, accountHint: sub.accountHint },
     gemini: { available: hasGemini },
     googleFlow: { programmatic: hasGemini },
+    board: { configured: !!boardRepo, repo: boardRepo },
   };
 }

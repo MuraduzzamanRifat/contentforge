@@ -19,6 +19,9 @@ an `OPENAI_API_KEY` set, generation uses **OpenAI** automatically.
    - `OPENAI_API_KEY` — from <https://platform.openai.com/api-keys>. This makes
      every AI feature (script, translate, review summary, SEO) work.
    - `OPENAI_MODEL` — optional, defaults to `gpt-4o`.
+   - `GITHUB_TOKEN` + `GITHUB_BOARD_REPO` — **strongly recommended.** Makes the
+     board *shared* so the client sees your rows/comments (else each browser
+     has its own localStorage copy). See [PERSISTENCE.md](PERSISTENCE.md).
    - `GEMINI_API_KEY` — optional; only for programmatic Veo (Google Flow is
      manual by default).
    - *(Skip `ANTHROPIC_API_KEY` unless you specifically want Claude-via-API.)*
