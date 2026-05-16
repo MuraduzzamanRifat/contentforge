@@ -1,0 +1,218 @@
+// ContentForge - Prisma schema (Postgres)
+// Run after backend split: pnpm prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
+enum ContentStatus {
+  IDEA
+  DRAFT
+  REVIEW
+  APPROVED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  ARCHIVED
+}
+
+enum JobType {
+  GENERATE_IDEAS
+  GENERATE_SCRIPT
+  GENERATE_METADATA
+  GENERATE_THUMBNAIL
+  RENDER_VIDEO
+  UPLOAD_YOUTUBE
+  SYNC_SHEET
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  RETRYING
+}
+
+model Workspace {
+  id        String          @id @default(cuid())
+  name      String
+  slug      String          @unique
+  createdAt DateTime        @default(now())
+  members   Membership[]
+  projects  Project[]
+  channels  YoutubeChannel[]
+  sheets    SheetBinding[]
+  apiKeys   ApiKey[]
+}
+
+model User {
+  id          String         @id @default(cuid())
+  email       String         @unique
+  name        String?
+  image       String?
+  memberships Membership[]
+  accounts    OAuthAccount[]
+  createdAt   DateTime       @default(now())
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId String
+  role        Role      @default(EDITOR)
+
+  @@unique([userId, workspaceId])
+}
+
+model OAuthAccount {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  provider     String
+  scope        String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+
+  @@unique([userId, provider])
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId String
+  name        String
+  niche       String?
+  brandVoice  Json?
+  defaults    Json?
+  contents    Content[]
+  createdAt   DateTime  @default(now())
+}
+
+model Content {
+  id           String           @id @default(cuid())
+  project      Project          @relation(fields: [projectId], references: [id])
+  projectId    String
+  rowIndex     Int
+  status       ContentStatus    @default(IDEA)
+  title        String?
+  hook         String?
+  script       String?
+  description  String?
+  tags         String[]
+  thumbnailUrl String?
+  videoUrl     String?
+  youtubeId    String?
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  metadata     Json?
+  aiCost       Decimal?         @db.Decimal(10, 4)
+  createdBy    String
+  updatedBy    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  jobs         Job[]
+  revisions    ContentRevision[]
+  comments     Comment[]
+
+  @@index([projectId, status])
+  @@index([projectId, rowIndex])
+}
+
+model ContentRevision {
+  id        String   @id @default(cuid())
+  content   Content  @relation(fields: [contentId], references: [id])
+  contentId String
+  snapshot  Json
+  authorId  String
+  createdAt DateTime @default(now())
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   Content  @relation(fields: [contentId], references: [id])
+  contentId String
+  authorId  String
+  body      String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  content    Content?  @relation(fields: [contentId], references: [id])
+  contentId  String?
+  type       JobType
+  status     JobStatus @default(QUEUED)
+  attempts   Int       @default(0)
+  payload    Json
+  result     Json?
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([status, type])
+}
+
+model YoutubeChannel {
+  id                String    @id @default(cuid())
+  workspace         Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId       String
+  channelId         String    @unique
+  title             String
+  oauthAccountId    String
+  defaultCategoryId String?
+  defaultPrivacy    String    @default("private")
+}
+
+model SheetBinding {
+  id            String    @id @default(cuid())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId   String
+  projectId     String?
+  spreadsheetId String
+  sheetName     String
+  columnMap     Json
+  lastSyncedAt  DateTime?
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspaceId String
+  name        String
+  hashedKey   String    @unique
+  scopes      String[]
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String
+  action      String
+  target      String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+}

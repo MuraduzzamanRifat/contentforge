@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  ContentForge palette — Data-Dense Dashboard
+  Foreground: slate-900   Background: slate-50
+  Primary: blue-600       Accent: orange-500
+*/
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;        /* slate-50 */
+    --foreground: 222 47% 11%;        /* slate-900 */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 221 83% 53%;           /* blue-600 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;         /* slate-100 */
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;             /* slate-100 */
+    --muted-foreground: 215 16% 47%;  /* slate-500 */
+
+    --accent: 24 95% 53%;             /* orange-500 — used as the AI/CTA accent */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;            /* slate-200 */
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;              /* blue-600 — match primary */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 6%;         /* slate-950 */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 9%;               /* slate-900 */
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;           /* blue-500 — lighter on dark for contrast */
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 217 33% 17%;         /* slate-800 */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;  /* slate-400 */
+
+    --accent: 24 95% 53%;
+    --accent-foreground: 222 47% 6%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection { @apply bg-primary/20 text-foreground; }
+
+  /* Visible focus ring everywhere */
+  :where(button, a, input, textarea, select, [role="button"], [tabindex]):focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+/* Spreadsheet grid — denser, calmer */
+@layer components {
+  .sheet-cell {
+    @apply border-b border-border/70 px-3 py-1.5 text-[13px] align-middle;
+  }
+  .sheet-cell + .sheet-cell { @apply border-l border-border/40; }
+  .sheet-row { @apply transition-colors duration-150; }
+  .sheet-row:hover { @apply bg-muted/50; }
+  .sheet-row.selected { @apply bg-primary/[0.04]; }
+  .sheet-row.active { @apply bg-primary/[0.06]; }
+  .sheet-header {
+    @apply sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80
+           border-b border-border text-[10.5px] font-semibold uppercase tracking-[0.06em]
+           text-muted-foreground;
+  }
+  .sheet-header .sheet-cell { @apply border-l-0; }
+
+  /* Numeric / tabular */
+  .num { @apply font-mono tabular-nums; }
+
+  /* Soft chip */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5
+           text-[10.5px] font-semibold ring-1 ring-inset;
+  }
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
