@@ -53,12 +53,35 @@ function detectClaudeSubscription(): { ok: boolean; accountHint?: string } {
   }
 }
 
+/**
+ * Pure auth-precedence decision (no fs/env) — unit tested.
+ *  1. CLAUDE_CODE_OAUTH_TOKEN  → subscription (headless self-host/VPS/tunnel,
+ *     `claude setup-token`, NO paid API). Explicit + portable → wins.
+ *  2. local Claude Code session (~/.claude/settings.json) → subscription
+ *  3. ANTHROPIC_API_KEY → api-key (paid per token)
+ *  4. nothing → none
+ */
+export function resolveClaudeAuth(i: {
+  hasOAuthToken: boolean;
+  subscriptionSession: boolean;
+  hasApiKey: boolean;
+}): ClaudeAuth {
+  if (i.hasOAuthToken || i.subscriptionSession) return "subscription";
+  if (i.hasApiKey) return "api-key";
+  return "none";
+}
+
 export function detectConnections(): Connections {
-  const sub = detectClaudeSubscription();
+  const hasOAuthToken = !!process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  const sub = hasOAuthToken ? { ok: true } : detectClaudeSubscription();
   const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
   const hasGemini = !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_GEMINI_API_KEY;
 
-  const auth: ClaudeAuth = sub.ok ? "subscription" : hasApiKey ? "api-key" : "none";
+  const auth = resolveClaudeAuth({
+    hasOAuthToken,
+    subscriptionSession: sub.ok,
+    hasApiKey,
+  });
 
   return {
     claude: {

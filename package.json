@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "cross-env NODE_ENV=production next build",
     "start": "cross-env NODE_ENV=production next start",
+    "serve": "pnpm build && pnpm start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
