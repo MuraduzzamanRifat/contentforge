@@ -11,6 +11,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { TRACK_STYLES, STATUS_STYLES, type Content, type SeoMeta } from "@/lib/types";
 import { preflight, canPublish } from "@/lib/seo-preflight";
 import { extractYouTubeId } from "@/lib/youtube-id";
+import { YouTubeEmbed } from "@/components/review/YouTubeEmbed";
 
 /** Rows eligible for publishing: script approved or beyond (SEO can be drafted from the approved script). */
 function isPublishable(c: Content): boolean {
@@ -304,9 +305,12 @@ export function PublishBoard() {
                 </div>
               </div>
               {row.status === "PUBLISHED" && row.youtubeId && (
-                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                  Published {formatDate(row.publishedAt)} · youtu.be/{row.youtubeId}
-                </p>
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                    Published {formatDate(row.publishedAt)}
+                  </p>
+                  <YouTubeEmbed youtubeId={row.youtubeId} />
+                </div>
               )}
             </div>
           )}

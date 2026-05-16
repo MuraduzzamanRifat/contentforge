@@ -10,7 +10,7 @@ import type {
 import { uid } from "./utils";
 import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./scenes";
 
-export type Section = "workflow" | "sheet" | "review" | "production" | "publish" | "calendar" | "analytics" | "library" | "settings";
+export type Section = "workflow" | "sheet" | "production" | "publish" | "calendar" | "analytics" | "settings";
 
 interface State {
   rows: Content[];

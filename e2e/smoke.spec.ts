@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 /**
  * One end-to-end happy path that proves the production-critical flows still work:
  *   1. App boots and renders 260 rows
- *   2. Section nav (Sheet / Calendar / Analytics / Library / Settings) all swap views
+ *   2. Topbar nav (Sheet / Calendar / Analytics / Settings) swaps views
  *   3. Track filter narrows the sheet
  *   4. Status filter narrows the sheet
  *   5. Search narrows the sheet
@@ -30,20 +30,19 @@ test("the sheet renders all 260 rows", async ({ page }) => {
   await expect(page.locator("tbody tr")).toHaveCount(260);
 });
 
-test("section nav switches the main view", async ({ page }) => {
-  await page.locator('aside button:has-text("Calendar")').first().click();
+test("topbar nav switches the main view (no sidebar)", async ({ page }) => {
+  // Nav lives in the topbar <header><nav>, not a left sidebar column.
+  await expect(page.locator('header nav button:has-text("Workflow")')).toBeVisible();
+  await page.locator('nav button:has-text("Calendar")').first().click();
   await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
 
-  await page.locator('aside button:has-text("Analytics")').first().click();
+  await page.locator('nav button:has-text("Analytics")').first().click();
   await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
 
-  await page.locator('aside button:has-text("Library")').first().click();
-  await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
-
-  await page.locator('aside button:has-text("Settings")').first().click();
+  await page.locator('nav button:has-text("Settings")').first().click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
-  await page.locator('aside button:has-text("Sheet")').first().click();
+  await page.locator('nav button:has-text("Sheet")').first().click();
   await expect(page.locator("tbody tr").first()).toBeVisible();
 });
 
@@ -63,7 +62,7 @@ test("status filter narrows the sheet", async ({ page }) => {
 });
 
 test("search narrows the sheet", async ({ page }) => {
-  await page.getByPlaceholder("Search videos…").fill("Kodo");
+  await page.getByPlaceholder("Search…").fill("Kodo");
   // Only Kodo / kodo-related rows should remain (there are 2-3).
   const count = await page.locator("tbody tr").count();
   expect(count).toBeGreaterThan(0);
@@ -99,7 +98,7 @@ test("Connections panel opens and shows Claude status", async ({ page }) => {
 });
 
 test("workflow board: kanban renders, drawer opens, no infinite loop", async ({ page }) => {
-  await page.locator('aside button:has-text("Workflow")').first().click();
+  await page.locator('nav button:has-text("Workflow")').first().click();
   await expect(page.getByRole("heading", { name: "Workflow" })).toBeVisible();
   // 5 columns
   for (const col of ["Draft", "In Review", "Rejected", "Approved", "Ready for Production"]) {
@@ -113,24 +112,24 @@ test("workflow board: kanban renders, drawer opens, no infinite loop", async ({ 
   await expect(page.getByRole("button", { name: /Send to client review/i })).toBeVisible();
 });
 
-test("workflow: sheet is still reachable from the sidebar", async ({ page }) => {
-  await page.locator('aside button:has-text("Sheet")').first().click();
+test("workflow: sheet is still reachable from the topbar nav", async ({ page }) => {
+  await page.locator('nav button:has-text("Sheet")').first().click();
   await expect(page.locator("tbody tr").first()).toBeVisible();
 });
 
 test("production: empty until a script is locked for production", async ({ page }) => {
-  await page.locator('aside button:has-text("Production")').first().click();
+  await page.locator('nav button:has-text("Production")').first().click();
   await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
   await expect(page.getByText(/Nothing in production/)).toBeVisible();
 });
 
 test("publish: empty until a script is approved, then row appears", async ({ page }) => {
-  await page.locator('aside button:has-text("Publish")').first().click();
+  await page.locator('nav button:has-text("Publish")').first().click();
   await expect(page.getByRole("heading", { name: "Publish" })).toBeVisible();
   await expect(page.getByText(/Nothing to publish yet/)).toBeVisible();
 
   // Drive one row Draft → In Review → Approved via the Workflow drawer
-  await page.locator('aside button:has-text("Workflow")').first().click();
+  await page.locator('nav button:has-text("Workflow")').first().click();
   await page.locator("div.overflow-y-auto > button").first().click();
   await page.getByRole("button", { name: /Send to client review/i }).click();
   await page.waitForTimeout(400);
@@ -139,7 +138,7 @@ test("publish: empty until a script is approved, then row appears", async ({ pag
   await page.waitForTimeout(400);
 
   // Publish now lists the approved row; opening it shows the honest "no script" gate
-  await page.locator('aside button:has-text("Publish")').first().click();
+  await page.locator('nav button:has-text("Publish")').first().click();
   await expect(page.locator('button:has-text("APPROVED")').first()).toBeVisible();
   await page.locator("button", { hasText: /Wounded Agarwood|Untitled|Agarwood/ }).first().click();
   await expect(page.getByText(/no script yet|Generate SEO/i).first()).toBeVisible();

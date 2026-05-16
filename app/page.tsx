@@ -1,18 +1,15 @@
 "use client";
 
-import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
 import { KpiStrip } from "@/components/sheet/KpiStrip";
 import { Toolbar } from "@/components/sheet/Toolbar";
 import { ContentSheet } from "@/components/sheet/ContentSheet";
 import { PreviewPanel } from "@/components/sheet/PreviewPanel";
 import { WorkflowBoard } from "@/components/workflow/WorkflowBoard";
-import { ReviewBoard } from "@/components/review/ReviewBoard";
 import { ProductionBoard } from "@/components/production/ProductionBoard";
 import { PublishBoard } from "@/components/publish/PublishBoard";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { AnalyticsView } from "@/components/analytics/AnalyticsView";
-import { LibraryView } from "@/components/library/LibraryView";
 import { SettingsView } from "@/components/settings/SettingsView";
 import { useStore } from "@/lib/store";
 
@@ -20,12 +17,12 @@ export default function Page() {
   const section = useStore((s) => s.section);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      <Sidebar />
+    // No left sidebar — nav lives in the Topbar so every board uses the full
+    // page width. Single full-height column: Topbar + the active section.
+    <div className="flex h-screen w-screen flex-col overflow-hidden">
+      <Topbar />
 
       <main className="flex flex-1 flex-col overflow-hidden">
-        <Topbar />
-
         {section === "sheet" && (
           <>
             <KpiStrip />
@@ -40,12 +37,10 @@ export default function Page() {
         )}
 
         {section === "workflow"  && <WorkflowBoard />}
-        {section === "review"    && <ReviewBoard />}
         {section === "production" && <ProductionBoard />}
         {section === "publish"   && <PublishBoard />}
         {section === "calendar"  && <CalendarView />}
         {section === "analytics" && <AnalyticsView />}
-        {section === "library"   && <LibraryView />}
         {section === "settings"  && <SettingsView />}
       </main>
     </div>
