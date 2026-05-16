@@ -8,6 +8,7 @@ import { ContentSheet } from "@/components/sheet/ContentSheet";
 import { PreviewPanel } from "@/components/sheet/PreviewPanel";
 import { WorkflowBoard } from "@/components/workflow/WorkflowBoard";
 import { ReviewBoard } from "@/components/review/ReviewBoard";
+import { ProductionBoard } from "@/components/production/ProductionBoard";
 import { PublishBoard } from "@/components/publish/PublishBoard";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { AnalyticsView } from "@/components/analytics/AnalyticsView";
@@ -40,6 +41,7 @@ export default function Page() {
 
         {section === "workflow"  && <WorkflowBoard />}
         {section === "review"    && <ReviewBoard />}
+        {section === "production" && <ProductionBoard />}
         {section === "publish"   && <PublishBoard />}
         {section === "calendar"  && <CalendarView />}
         {section === "analytics" && <AnalyticsView />}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Workflow as WorkflowIcon, Table2, MessagesSquare, Megaphone, Calendar, BarChart3, Image as ImageIcon, Settings, ChevronsLeft, Sparkles } from "lucide-react";
+import { Workflow as WorkflowIcon, Table2, MessagesSquare, Clapperboard, Megaphone, Calendar, BarChart3, Image as ImageIcon, Settings, ChevronsLeft, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore, type Section } from "@/lib/store";
 import { waitingOn, workflowColumn } from "@/lib/workflow";
@@ -10,6 +10,7 @@ const NAV: { id: Section; label: string; icon: typeof Table2 }[] = [
   { id: "workflow",  label: "Workflow",  icon: WorkflowIcon },
   { id: "sheet",     label: "Sheet",     icon: Table2 },
   { id: "review",    label: "Review",    icon: MessagesSquare },
+  { id: "production", label: "Production", icon: Clapperboard },
   { id: "publish",   label: "Publish",   icon: Megaphone },
   { id: "calendar",  label: "Calendar",  icon: Calendar },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -26,6 +27,12 @@ export function Sidebar() {
     (s) =>
       s.rows.filter(
         (r) => workflowColumn(r) !== null && waitingOn(r, s.comments[r.id] ?? []) === "me"
+      ).length
+  );
+  const productionCount = useStore(
+    (s) =>
+      s.rows.filter(
+        (r) => ((r.status === "APPROVED" && r.productionLocked) || !!r.production) && !r.production?.finalizedAt
       ).length
   );
 
@@ -98,6 +105,11 @@ export function Sidebar() {
                   {id === "workflow" && onMeCount > 0 && (
                     <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums">
                       {onMeCount}
+                    </span>
+                  )}
+                  {id === "production" && productionCount > 0 && (
+                    <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums">
+                      {productionCount}
                     </span>
                   )}
                   {active && <span className="h-1 w-1 rounded-full bg-primary" />}

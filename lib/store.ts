@@ -3,10 +3,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { seedClone } from "./agarwood-plan";
-import type { Content, ContentPatch, ContentStatus, Track, ReviewComment, Role, Lang, SeoMeta } from "./types";
+import type {
+  Content, ContentPatch, ContentStatus, Track, ReviewComment, Role, Lang, SeoMeta,
+  SceneStatus, ProductionChecklist,
+} from "./types";
 import { uid } from "./utils";
+import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./scenes";
 
-export type Section = "workflow" | "sheet" | "review" | "publish" | "calendar" | "analytics" | "library" | "settings";
+export type Section = "workflow" | "sheet" | "review" | "production" | "publish" | "calendar" | "analytics" | "library" | "settings";
 
 interface State {
   rows: Content[];
@@ -50,6 +54,13 @@ interface Actions {
   reopenScript: (id: string) => void;       // Rejected/anything → back to Draft
   lockForProduction: (id: string) => void;  // Approved → Ready
   unlockProduction: (id: string) => void;
+
+  // Stage 2 — Production (Google Flow manual)
+  initProduction: (id: string) => void;            // parse scenes from approved script
+  setSceneStatus: (id: string, sceneId: string, status: SceneStatus) => void;
+  setSceneClip: (id: string, sceneId: string, clipUrl: string | undefined) => void;
+  toggleProductionCheck: (id: string, key: keyof ProductionChecklist) => void;
+  finalizeProduction: (id: string) => void;        // → videoApproved, eligible for Publish
 
   // Stage 3 — Publish
   setSeo: (id: string, seo: SeoMeta) => void;
@@ -212,6 +223,98 @@ export const useStore = create<State & Actions>()(
           ),
         })),
 
+      initProduction: (id) =>
+        set((s) => ({
+          rows: s.rows.map((r) => {
+            if (r.id !== id) return r;
+            if (r.production) return r; // already initialised — don't clobber clips
+            const parsed = parseScenes(r.script ?? "");
+            return {
+              ...r,
+              production: {
+                scenes: parsed.map((p) => ({
+                  id: p.id,
+                  label: p.label,
+                  timecode: p.end ? `${p.start}–${p.end}` : p.start,
+                  text: p.text,
+                  status: "pending" as SceneStatus,
+                })),
+                checklist: { scenes: false, voiceover: false, subtitles: false, music: false, broll: false, finalCut: false },
+                animationDirection: extractAnimationDirection(r.script ?? "") ?? undefined,
+                onScreenText: extractOnScreenText(r.script ?? ""),
+                finalizedAt: null,
+              },
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        })),
+
+      setSceneStatus: (id, sceneId, status) =>
+        set((s) => ({
+          rows: s.rows.map((r) =>
+            r.id === id && r.production
+              ? {
+                  ...r,
+                  production: {
+                    ...r.production,
+                    scenes: r.production.scenes.map((sc) =>
+                      sc.id === sceneId ? { ...sc, status } : sc
+                    ),
+                  },
+                }
+              : r
+          ),
+        })),
+
+      setSceneClip: (id, sceneId, clipUrl) =>
+        set((s) => ({
+          rows: s.rows.map((r) =>
+            r.id === id && r.production
+              ? {
+                  ...r,
+                  production: {
+                    ...r.production,
+                    scenes: r.production.scenes.map((sc) =>
+                      sc.id === sceneId
+                        ? { ...sc, clipUrl, status: clipUrl ? "clip-ready" : "pending" }
+                        : sc
+                    ),
+                  },
+                  updatedAt: new Date().toISOString(),
+                }
+              : r
+          ),
+        })),
+
+      toggleProductionCheck: (id, key) =>
+        set((s) => ({
+          rows: s.rows.map((r) =>
+            r.id === id && r.production
+              ? {
+                  ...r,
+                  production: {
+                    ...r.production,
+                    checklist: { ...r.production.checklist, [key]: !r.production.checklist[key] },
+                  },
+                }
+              : r
+          ),
+        })),
+
+      finalizeProduction: (id) =>
+        set((s) => ({
+          rows: s.rows.map((r) =>
+            r.id === id && r.production
+              ? {
+                  ...r,
+                  videoApproved: true,
+                  production: { ...r.production, finalizedAt: new Date().toISOString() },
+                  updatedAt: new Date().toISOString(),
+                }
+              : r
+          ),
+        })),
+
       setSeo: (id, seo) =>
         set((s) => ({
           rows: s.rows.map((r) =>
@@ -295,7 +398,7 @@ export const useStore = create<State & Actions>()(
     }),
     {
       name: "contentforge-agarwood-v1",
-      version: 6,
+      version: 7,
       partialize: (s) => ({
         rows: s.rows,
         dark: s.dark,

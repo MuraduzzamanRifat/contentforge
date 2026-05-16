@@ -56,10 +56,41 @@ export interface Content {
   rejected?: boolean;          // client requested changes — sits in Rejected column
   productionLocked?: boolean;  // operator locked the approved script → Ready for Production
   videoApproved?: boolean;     // final cut approved → eligible for Publish stage
+  // Stage 2 — Production (Google Flow manual)
+  production?: ProductionState;
   // Stage 3 — Publish
   seo?: SeoMeta;
   publishPrivacy?: "public" | "unlisted" | "private";
   publishAt?: string | null;   // ISO; set when scheduled
+}
+
+export type SceneStatus = "pending" | "prompt-copied" | "clip-ready";
+
+export interface SceneState {
+  id: string;
+  label: string;
+  timecode: string;   // "0:00–0:08"
+  text: string;
+  status: SceneStatus;
+  clipUrl?: string;   // object URL of the manually-rendered Flow clip
+  note?: string;
+}
+
+export interface ProductionChecklist {
+  scenes: boolean;
+  voiceover: boolean;
+  subtitles: boolean;
+  music: boolean;
+  broll: boolean;
+  finalCut: boolean;
+}
+
+export interface ProductionState {
+  scenes: SceneState[];
+  checklist: ProductionChecklist;
+  animationDirection?: string;
+  onScreenText: string[];
+  finalizedAt?: string | null;
 }
 
 export interface SeoMeta {

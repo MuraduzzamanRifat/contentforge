@@ -118,6 +118,12 @@ test("workflow: sheet is still reachable from the sidebar", async ({ page }) => 
   await expect(page.locator("tbody tr").first()).toBeVisible();
 });
 
+test("production: empty until a script is locked for production", async ({ page }) => {
+  await page.locator('aside button:has-text("Production")').first().click();
+  await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
+  await expect(page.getByText(/Nothing in production/)).toBeVisible();
+});
+
 test("publish: empty until a script is approved, then row appears", async ({ page }) => {
   await page.locator('aside button:has-text("Publish")').first().click();
   await expect(page.getByRole("heading", { name: "Publish" })).toBeVisible();
