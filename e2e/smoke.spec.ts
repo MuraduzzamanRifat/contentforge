@@ -1,151 +1,201 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
- * One end-to-end happy path that proves the production-critical flows still work:
- *   1. App boots and renders 260 rows
- *   2. Topbar nav (Sheet / Calendar / Analytics / Settings) swaps views
- *   3. Track filter narrows the sheet
- *   4. Status filter narrows the sheet
- *   5. Search narrows the sheet
- *   6. Row selection populates preview panel
- *   7. Mark-published rejects invalid YouTube IDs, accepts valid ones
- *   8. Connections panel opens and shows Claude status
- *   9. Duplicate flag is present on at least one row
+ * End-to-end happy paths for the CURRENT product:
+ *   - Generate is the default landing screen (Sheet starts empty)
+ *   - Empty Sheet shows its honest empty-state CTA
+ *   - With a board present (injected as a deterministic fixture — the 260-row
+ *     seed was retired in favour of AI-invented topics), the Sheet / filters /
+ *     preview / Workflow / Production / Publish flows still work
+ *   - Connections panel renders
+ *
+ * Fixtures are injected via localStorage in the exact zustand-persist shape
+ * ({ state: <partialized>, version }). On CI there is no GITHUB_TOKEN, so
+ * /api/board returns 412 and BoardSync stays local-only — it never clobbers
+ * the injected board. No test depends on the AI provider (none on CI).
  */
 
-test.beforeEach(async ({ page }) => {
-  // Clear persisted Zustand state so every test starts from the fresh agarwood seed.
-  await page.addInitScript(() => {
-    try {
-      localStorage.removeItem("contentforge");
-      localStorage.removeItem("contentforge-agarwood-v1");
-    } catch {}
+const PERSIST_KEY = "contentforge-agarwood-v1";
+const PERSIST_VERSION = 7;
+
+type Row = Record<string, unknown>;
+
+function rows(): Row[] {
+  const now = "2026-05-17T00:00:00.000Z";
+  const base = {
+    brief: "Topic angle: factual cold-open. Track source map applies.",
+    script: "Hook: ... Cold-open: ... Proof: ... Synthesis: ... CTA: ...",
+    description: "", tags: [], aiCost: 0, createdAt: now, updatedAt: now,
+  };
+  const mk = (i: number, p: Row): Row => ({
+    id: `r${i}`, rowIndex: i, status: "DRAFT", hook: "Opening line.", ...base, ...p,
   });
-  await page.goto("/");
-  // Default section is Sheet; wait for the seed rows to render.
-  await page.locator("tbody tr").first().waitFor({ timeout: 10_000 });
+  return [
+    mk(0, { title: "What Happens Inside a Wounded Agarwood Tree", track: "A", category: "Formation" }),
+    mk(1, { title: "What Happens Inside a Wounded Agarwood Tree (First Hours)", track: "A", category: "Formation" }),
+    mk(2, { title: "The Molecule That Makes Oud Smell Like Oud", track: "A", category: "Chemistry" }),
+    mk(3, { title: "Agarwood on the Maritime Incense Road", track: "B", category: "History" }),
+    mk(4, { title: "Kodo: The Japanese Art of Listening to Incense", track: "C", category: "Japanese ritual" }),
+    mk(5, { title: "Why Temples Burn Agarwood", track: "C", category: "Culture" }),
+    mk(6, { title: "Why Agarwood Costs More Than Gold", track: "D", category: "Economy" }),
+    mk(7, { title: "Why Agarwood Is More Expensive Than Gold", track: "D", category: "Economy" }),
+  ];
+}
+
+/** Inject a persisted board (section=sheet) before the app's JS runs. */
+async function seedBoard(page: Page) {
+  const payload = JSON.stringify({
+    state: {
+      rows: rows(),
+      dark: false,
+      section: "sheet",
+      comments: {},
+      viewerLang: "en",
+      viewerRole: "operator",
+    },
+    version: PERSIST_VERSION,
+  });
+  await page.addInitScript(
+    ([key, value]) => {
+      try { localStorage.setItem(key as string, value as string); } catch {}
+    },
+    [PERSIST_KEY, payload],
+  );
+}
+
+async function clearBoard(page: Page) {
+  await page.addInitScript((key) => {
+    try { localStorage.removeItem(key as string); } catch {}
+  }, PERSIST_KEY);
+}
+
+// ---------------------------------------------------------------------------
+
+test.describe("fresh app (no board)", () => {
+  test.beforeEach(async ({ page }) => {
+    await clearBoard(page);
+    await page.goto("/");
+  });
+
+  test("Generate is the default landing screen", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /Generate topics/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Generate 5 topics/i }).first()).toBeVisible();
+  });
+
+  test("Sheet shows its empty-state CTA", async ({ page }) => {
+    await page.locator('nav button:has-text("Sheet")').first().click();
+    await expect(page.getByText(/The Sheet is empty/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Go to Generate/i })).toBeVisible();
+  });
+
+  test("Connections panel opens and shows Claude status", async ({ page }) => {
+    await page.locator('button[aria-label="Open Connections panel"]').click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog").getByText(/Claude/i).first()).toBeVisible();
+  });
 });
 
-test("the sheet renders all 260 rows", async ({ page }) => {
-  await expect(page.locator("tbody tr")).toHaveCount(260);
-});
+test.describe("seeded board", () => {
+  test.beforeEach(async ({ page }) => {
+    await seedBoard(page);
+    await page.goto("/");
+    await page.locator("tbody tr").first().waitFor({ timeout: 15_000 });
+  });
 
-test("topbar nav switches the main view (no sidebar)", async ({ page }) => {
-  // Nav lives in the topbar <header><nav>, not a left sidebar column.
-  await expect(page.locator('header nav button:has-text("Workflow")')).toBeVisible();
-  await page.locator('nav button:has-text("Calendar")').first().click();
-  await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+  test("the sheet renders the injected rows", async ({ page }) => {
+    await expect(page.locator("tbody tr")).toHaveCount(8);
+  });
 
-  await page.locator('nav button:has-text("Analytics")').first().click();
-  await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
+  test("topbar nav switches the main view (no sidebar)", async ({ page }) => {
+    await expect(page.locator('header nav button:has-text("Workflow")')).toBeVisible();
+    await page.locator('nav button:has-text("Calendar")').first().click();
+    await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
+    await page.locator('nav button:has-text("Analytics")').first().click();
+    await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
+    await page.locator('nav button:has-text("Settings")').first().click();
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await page.locator('nav button:has-text("Sheet")').first().click();
+    await expect(page.locator("tbody tr").first()).toBeVisible();
+  });
 
-  await page.locator('nav button:has-text("Settings")').first().click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  test("track filter narrows the sheet", async ({ page }) => {
+    const before = await page.locator("tbody tr").count();
+    await page.getByTitle(/^Science \(/).click(); // Track A chip → 3 rows
+    const after = await page.locator("tbody tr").count();
+    expect(after).toBeLessThan(before);
+    expect(after).toBeGreaterThan(0);
+  });
 
-  await page.locator('nav button:has-text("Sheet")').first().click();
-  await expect(page.locator("tbody tr").first()).toBeVisible();
-});
+  test("status filter narrows the sheet", async ({ page }) => {
+    await page.getByRole("button", { name: /All status/ }).click();
+    await page.getByRole("menuitem").filter({ hasText: "PUBLISHED" }).click();
+    await expect(page.getByText(/No rows match/)).toBeVisible();
+  });
 
-test("track filter narrows the sheet", async ({ page }) => {
-  const before = await page.locator("tbody tr").count();
-  await page.getByTitle(/^Science \(/).click(); // Track A chip
-  const after = await page.locator("tbody tr").count();
-  expect(after).toBeLessThan(before);
-  expect(after).toBeGreaterThan(0);
-});
+  test("search narrows the sheet", async ({ page }) => {
+    await page.getByPlaceholder("Search…").fill("Kodo");
+    const count = await page.locator("tbody tr").count();
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBeLessThan(8);
+  });
 
-test("status filter narrows the sheet", async ({ page }) => {
-  await page.getByRole("button", { name: /All status/ }).click();
-  await page.getByRole("menuitem").filter({ hasText: "PUBLISHED" }).click();
-  // No videos start as PUBLISHED, so the empty-state row should appear.
-  await expect(page.getByText(/No rows match/)).toBeVisible();
-});
+  test("clicking a row populates the preview panel", async ({ page }) => {
+    await page.locator("tbody tr").nth(0).locator("td").nth(1).click();
+    await expect(page.getByText(/Production brief/)).toBeVisible();
+    await expect(page.getByText(/Animation direction/)).toBeVisible();
+  });
 
-test("search narrows the sheet", async ({ page }) => {
-  await page.getByPlaceholder("Search…").fill("Kodo");
-  // Only Kodo / kodo-related rows should remain (there are 2-3).
-  const count = await page.locator("tbody tr").count();
-  expect(count).toBeGreaterThan(0);
-  expect(count).toBeLessThan(20);
-});
+  test("Mark published rejects garbage and accepts a valid ID", async ({ page }) => {
+    await page.locator("tbody tr").nth(0).locator("td").nth(1).click();
+    const input = page.getByPlaceholder("YouTube ID or URL");
+    await input.fill("not-an-id");
+    await expect(page.getByText(/11-char ID or full YouTube URL/)).toBeVisible();
+    const btn = page.getByRole("button", { name: "Mark published" });
+    await expect(btn).toBeDisabled();
+    await input.fill("dQw4w9WgXcQ");
+    await expect(btn).toBeEnabled();
+    await btn.click();
+    await expect(page.locator(".chip:has-text('PUBLISHED')").first()).toBeVisible();
+  });
 
-test("clicking a row populates the preview panel", async ({ page }) => {
-  // Click the # cell of row 1 to avoid hitting the title input.
-  await page.locator("tbody tr").nth(0).locator("td").nth(1).click();
-  await expect(page.getByText(/Production brief/)).toBeVisible();
-  await expect(page.getByText(/Animation direction/)).toBeVisible();
-});
+  test("workflow board: kanban renders, drawer opens, no infinite loop", async ({ page }) => {
+    await page.locator('nav button:has-text("Workflow")').first().click();
+    await expect(page.getByRole("heading", { name: "Workflow" })).toBeVisible();
+    for (const col of ["Draft", "In Review", "Rejected", "Approved", "Ready for Production"]) {
+      await expect(page.getByText(col, { exact: true }).first()).toBeVisible();
+    }
+    await page.locator("div.overflow-y-auto > button").first().click();
+    await expect(page.getByText(/클라이언트용 요약/)).toBeVisible();
+    await expect(page.getByText(/Discussion \(0\)/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Send to client review/i })).toBeVisible();
+  });
 
-test("Mark published rejects garbage and accepts a valid ID", async ({ page }) => {
-  await page.locator("tbody tr").nth(0).locator("td").nth(1).click();
-  const input = page.getByPlaceholder("YouTube ID or URL");
-  await input.fill("not-an-id");
-  await expect(page.getByText(/11-char ID or full YouTube URL/)).toBeVisible();
-  const btn = page.getByRole("button", { name: "Mark published" });
-  await expect(btn).toBeDisabled();
+  test("production: empty until a script is locked for production", async ({ page }) => {
+    await page.locator('nav button:has-text("Production")').first().click();
+    await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
+    await expect(page.getByText(/Nothing in production/)).toBeVisible();
+  });
 
-  await input.fill("dQw4w9WgXcQ");
-  await expect(btn).toBeEnabled();
-  await btn.click();
-  // Status should now be PUBLISHED on the row's status chip.
-  await expect(page.locator(".chip:has-text('PUBLISHED')").first()).toBeVisible();
-});
+  test("publish: empty until approved, then the approved row appears", async ({ page }) => {
+    await page.locator('nav button:has-text("Publish")').first().click();
+    await expect(page.getByRole("heading", { name: "Publish" })).toBeVisible();
+    await expect(page.getByText(/Nothing to publish yet/)).toBeVisible();
 
-test("Connections panel opens and shows Claude status", async ({ page }) => {
-  await page.locator('button[aria-label="Open Connections panel"]').click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("dialog").getByText(/Claude/i).first()).toBeVisible();
-});
+    await page.locator('nav button:has-text("Workflow")').first().click();
+    await page.locator("div.overflow-y-auto > button").first().click();
+    await page.getByRole("button", { name: /Send to client review/i }).click();
+    await page.waitForTimeout(400);
+    await page.locator("div.overflow-y-auto").nth(1).locator("button").first().click();
+    await page.locator("button.bg-emerald-600", { hasText: "Approve" }).first().click();
+    await page.waitForTimeout(400);
 
-test("workflow board: kanban renders, drawer opens, no infinite loop", async ({ page }) => {
-  await page.locator('nav button:has-text("Workflow")').first().click();
-  await expect(page.getByRole("heading", { name: "Workflow" })).toBeVisible();
-  // 5 columns
-  for (const col of ["Draft", "In Review", "Rejected", "Approved", "Ready for Production"]) {
-    await expect(page.getByText(col, { exact: true }).first()).toBeVisible();
-  }
-  // Open first card → drawer shows the Korean summary section (proves no getSnapshot loop)
-  await page.locator("div.overflow-y-auto > button").first().click();
-  await expect(page.getByText(/클라이언트용 요약/)).toBeVisible();
-  await expect(page.getByText(/Discussion \(0\)/)).toBeVisible();
-  // DRAFT column action
-  await expect(page.getByRole("button", { name: /Send to client review/i })).toBeVisible();
-});
+    await page.locator('nav button:has-text("Publish")').first().click();
+    await expect(page.locator('button:has-text("APPROVED")').first()).toBeVisible();
+  });
 
-test("workflow: sheet is still reachable from the topbar nav", async ({ page }) => {
-  await page.locator('nav button:has-text("Sheet")').first().click();
-  await expect(page.locator("tbody tr").first()).toBeVisible();
-});
-
-test("production: empty until a script is locked for production", async ({ page }) => {
-  await page.locator('nav button:has-text("Production")').first().click();
-  await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
-  await expect(page.getByText(/Nothing in production/)).toBeVisible();
-});
-
-test("publish: empty until a script is approved, then row appears", async ({ page }) => {
-  await page.locator('nav button:has-text("Publish")').first().click();
-  await expect(page.getByRole("heading", { name: "Publish" })).toBeVisible();
-  await expect(page.getByText(/Nothing to publish yet/)).toBeVisible();
-
-  // Drive one row Draft → In Review → Approved via the Workflow drawer
-  await page.locator('nav button:has-text("Workflow")').first().click();
-  await page.locator("div.overflow-y-auto > button").first().click();
-  await page.getByRole("button", { name: /Send to client review/i }).click();
-  await page.waitForTimeout(400);
-  await page.locator("div.overflow-y-auto").nth(1).locator("button").first().click();
-  await page.locator("button.bg-emerald-600", { hasText: "Approve" }).first().click();
-  await page.waitForTimeout(400);
-
-  // Publish now lists the approved row; opening it shows the honest "no script" gate
-  await page.locator('nav button:has-text("Publish")').first().click();
-  await expect(page.locator('button:has-text("APPROVED")').first()).toBeVisible();
-  await page.locator("button", { hasText: /Wounded Agarwood|Untitled|Agarwood/ }).first().click();
-  await expect(page.getByText(/no script yet|Generate SEO/i).first()).toBeVisible();
-});
-
-test("at least one row has a duplicate-overlap flag", async ({ page }) => {
-  // The 260-row plan has known overlaps (e.g. economy/price across weeks 1, 7, 33, 36).
-  const flagged = await page.locator('button[aria-label$="possible duplicates"]').count();
-  expect(flagged).toBeGreaterThan(0);
+  test("at least one row has a duplicate-overlap flag", async ({ page }) => {
+    // The fixture has two near-identical pairs (rows 0/1 and 6/7).
+    const flagged = await page.locator('button[aria-label$="possible duplicates"]').count();
+    expect(flagged).toBeGreaterThan(0);
+  });
 });
