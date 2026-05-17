@@ -18,6 +18,7 @@ interface ConnState {
 }
 
 const NAV: { id: Section; label: string; icon: typeof Table2 }[] = [
+  { id: "generate",   label: "Generate",   icon: Sparkles },
   { id: "sheet",      label: "Sheet",      icon: Table2 },
   { id: "workflow",   label: "Workflow",   icon: WorkflowIcon },
   { id: "production", label: "Production",  icon: Clapperboard },

@@ -2,7 +2,8 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { seedClone } from "./agarwood-plan";
+import { BASELINE_TAGS } from "./project-config";
+import type { TopicCandidate } from "./topic-intake";
 import type {
   Content, ContentPatch, ContentStatus, Track, ReviewComment, Role, Lang, SeoMeta,
   SceneStatus, ProductionChecklist,
@@ -10,26 +11,9 @@ import type {
 import { uid } from "./utils";
 import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./scenes";
 
-export type Section = "workflow" | "sheet" | "production" | "publish" | "calendar" | "analytics" | "settings";
-
-/**
- * True when a board carries no real operator content (no rows, or every row
- * is an untitled IDEA stub). Used by the persist `merge` below: a stale/empty
- * localStorage board must never shadow the 260-row seed — otherwise a browser
- * that opened an earlier build (or a fresh deploy) shows one blank row instead
- * of the plan. A board with any titled/hooked/scripted or non-IDEA row is
- * "real" and is kept as-is.
- */
-export const isBlankBoard = (rows: Content[] | undefined): boolean =>
-  !rows ||
-  rows.length === 0 ||
-  rows.every(
-    (r) =>
-      !r.title?.trim() &&
-      !r.hook?.trim() &&
-      !r.script?.trim() &&
-      (!r.status || r.status === "IDEA"),
-  );
+export type Section =
+  | "generate" | "workflow" | "sheet" | "production" | "publish"
+  | "calendar" | "analytics" | "settings";
 
 interface State {
   rows: Content[];
@@ -46,6 +30,11 @@ interface State {
   viewerLang: Lang;
   /** Which side of the conversation "you" are when composing. */
   viewerRole: Role;
+
+  // --- Generate stage (transient — NOT persisted; remote board never carries drafts) ---
+  topicCandidates: TopicCandidate[];
+  genStatus: "idle" | "generating" | "error";
+  genError: string | null;
 
   // --- GitHub-as-DB sync (transient, NOT persisted to localStorage) ---
   syncStatus: "local-only" | "loading" | "synced" | "saving" | "error";
@@ -69,6 +58,13 @@ interface Actions {
   bulkPatch: (ids: string[], p: ContentPatch) => void;
   bulkRemove: (ids: string[]) => void;
   reset: () => void;
+
+  // Generate stage
+  setTopicCandidates: (c: TopicCandidate[]) => void;
+  setGenStatus: (s: State["genStatus"], err?: string | null) => void;
+  approveCandidate: (id: string) => void;   // candidate → DRAFT row in the Sheet
+  rejectCandidate: (id: string) => void;    // discard candidate
+  clearCandidates: () => void;
 
   /** Hydrate the collaborative slice from the GitHub board (remote = truth). */
   replaceBoard: (b: { rows: Content[]; comments: Record<string, ReviewComment[]> }) => void;
@@ -105,19 +101,48 @@ interface Actions {
 export const useStore = create<State & Actions>()(
   persist(
     (set, get) => ({
-      rows: seedClone(),
+      rows: [],                 // Sheet starts empty — it fills only with approved topics
       selectedId: null,
       selectedIds: new Set(),
       filter: "ALL",
       trackFilter: "ALL",
       search: "",
       dark: false,
-      section: "sheet",
+      section: "generate",      // Generate is the entry point
       comments: {},
       viewerLang: "en",
       viewerRole: "operator",
+      topicCandidates: [],
+      genStatus: "idle",
+      genError: null,
       syncStatus: "local-only",
       lastSyncedAt: null,
+
+      setTopicCandidates: (topicCandidates) =>
+        set({ topicCandidates, genStatus: "idle", genError: null }),
+      setGenStatus: (genStatus, genError = null) => set({ genStatus, genError }),
+      rejectCandidate: (id) =>
+        set((s) => ({ topicCandidates: s.topicCandidates.filter((t) => t.id !== id) })),
+      clearCandidates: () => set({ topicCandidates: [] }),
+      approveCandidate: (id) => {
+        const c = get().topicCandidates.find((t) => t.id === id);
+        if (!c) return;
+        const now = new Date().toISOString();
+        const sources = c.sources.length
+          ? `\n\nFACT SOURCES\n${c.sources.map((src, i) => `[${i + 1}] ${src}`).join("\n")}`
+          : "";
+        const row: Content = {
+          id: uid(), rowIndex: 0, status: "DRAFT",
+          title: c.title, hook: c.hook, script: `${c.script}${sources}`,
+          description: "", category: c.category, track: c.track,
+          tags: [...BASELINE_TAGS], aiCost: 0, createdAt: now, updatedAt: now,
+        };
+        set((s) => ({
+          rows: [...s.rows, row].map((r, i) => ({ ...r, rowIndex: i })),
+          topicCandidates: s.topicCandidates.filter((t) => t.id !== id),
+          selectedId: row.id,
+        }));
+      },
 
       replaceBoard: (b) =>
         set({ rows: b.rows, comments: b.comments ?? {}, selectedId: null, selectedIds: new Set() }),
@@ -214,7 +239,7 @@ export const useStore = create<State & Actions>()(
           };
         }),
 
-      reset: () => set({ rows: seedClone(), selectedId: null, selectedIds: new Set() }),
+      reset: () => set({ rows: [], selectedId: null, selectedIds: new Set() }),
 
       sendToReview: (id) =>
         set((s) => ({
@@ -441,20 +466,6 @@ export const useStore = create<State & Actions>()(
         viewerLang: s.viewerLang,
         viewerRole: s.viewerRole,
       }),
-      /**
-       * Replaces zustand's default shallow merge. Same behavior
-       * (persisted slice over the initial state) PLUS one guard: if the
-       * persisted board is blank (stale/empty localStorage from an earlier
-       * build, or a fresh deploy), fall back to the 260-row seed instead of
-       * showing one empty row. A real board is always kept untouched, and
-       * GitHub-as-DB still wins afterward (BoardSync calls replaceBoard with
-       * the remote board on mount when configured).
-       */
-      merge: (persisted, current) => {
-        const merged = { ...current, ...(persisted as Partial<State>) };
-        if (isBlankBoard(merged.rows)) merged.rows = seedClone();
-        return merged;
-      },
     }
   )
 );

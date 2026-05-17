@@ -24,17 +24,13 @@ const DISCLAIMER_MARKERS = [
   "traditional use only",
 ];
 
-/** Banned-phrase scan over title + description + tags + hashtags. */
-function bannedHits(meta: SeoMeta): string[] {
-  const haystack = [
-    meta.title,
-    meta.description,
-    ...(meta.tags ?? []),
-    ...(meta.hashtags ?? []),
-  ]
-    .join("  ")
-    .toLowerCase();
-
+/**
+ * Scan arbitrary text for NEVER_SAY banned phrases. Shared by the publish
+ * preflight (SeoMeta) and the topic-intake compliance check (title+hook+
+ * script) so there is exactly one banned-phrase implementation.
+ */
+export function scanBanned(text: string): string[] {
+  const haystack = text.toLowerCase();
   const hits: string[] = [];
   for (const n of NEVER_SAY) {
     // NEVER_SAY phrases look like:
@@ -56,6 +52,13 @@ function bannedHits(meta: SeoMeta): string[] {
     }
   }
   return [...new Set(hits)];
+}
+
+/** Banned-phrase scan over title + description + tags + hashtags. */
+function bannedHits(meta: SeoMeta): string[] {
+  return scanBanned(
+    [meta.title, meta.description, ...(meta.tags ?? []), ...(meta.hashtags ?? [])].join("  "),
+  );
 }
 
 const MM_SS = /^\d{1,2}:\d{2}$/;
