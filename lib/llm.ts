@@ -36,14 +36,32 @@ export async function callLLM(
   if (provider === "openai") {
     const { default: OpenAI } = await import("openai");
     const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-    const res = await ai.chat.completions.create({
-      model: OPENAI_MODEL,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-    });
+    const messages = [
+      { role: "system" as const, content: systemPrompt },
+      { role: "user" as const, content: userMessage },
+    ];
+    let res;
+    try {
+      res = await ai.chat.completions.create({ model: OPENAI_MODEL, max_tokens: maxTokens, messages });
+    } catch (e) {
+      // Reasoning-era models (o1/o3/gpt-5…) reject `max_tokens` and require
+      // `max_completion_tokens`. Retry once with the new param name.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/max_completion_tokens|'?max_tokens'? is not supported/i.test(msg)) {
+        res = await ai.chat.completions.create({
+          model: OPENAI_MODEL,
+          max_completion_tokens: maxTokens,
+          messages,
+        });
+      } else if (e instanceof OpenAI.APIError) {
+        // Precise, actionable message instead of an opaque SDK stack.
+        throw new Error(
+          `OpenAI ${e.status ?? ""}${e.code ? ` ${e.code}` : ""}: ${e.message}`.replace(/\s+/g, " ").trim(),
+        );
+      } else {
+        throw e;
+      }
+    }
     const text = (res.choices[0]?.message?.content ?? "").trim();
     return {
       text,

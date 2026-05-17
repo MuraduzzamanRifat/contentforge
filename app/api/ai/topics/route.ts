@@ -78,6 +78,18 @@ export async function POST(req: NextRequest) {
       );
     }
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: "AI call failed", detail: message }, { status: 500 });
+    const hint =
+      /quota|insufficient_quota|billing|exceeded your current/i.test(message)
+        ? "The OpenAI key has no available quota — add a payment method / credits at platform.openai.com/account/billing, then retry."
+      : /401|invalid_api_key|incorrect api key|unauthorized/i.test(message)
+        ? "OPENAI_API_KEY is invalid — regenerate it and update it in the Vercel project env."
+      : /model.*(not found|does not exist)|does not have access to model|404/i.test(message)
+        ? "This key can't use the configured model — set OPENAI_MODEL in Vercel to one you have access to (e.g. gpt-4o-mini)."
+      : /rate.?limit|429/i.test(message)
+        ? "OpenAI rate limit hit — wait a moment and retry."
+      : /timeout|ETIMEDOUT|aborted|FUNCTION_INVOCATION_TIMEOUT/i.test(message)
+        ? "The model took too long for 5 scripts — retry; if it persists the serverless function is timing out."
+      : undefined;
+    return NextResponse.json({ error: "AI call failed", detail: message, hint }, { status: 500 });
   }
 }

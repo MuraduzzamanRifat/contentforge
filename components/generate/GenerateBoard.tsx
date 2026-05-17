@@ -43,7 +43,10 @@ export function GenerateBoard() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setGenStatus("error", data.hint ? `${data.error} — ${data.hint}` : data.error || `HTTP ${res.status}`);
+        // Surface the REAL reason (route returns detail + hint), never just
+        // an opaque "AI call failed".
+        const reason = data.detail || data.error || `HTTP ${res.status}`;
+        setGenStatus("error", data.hint ? `${reason}\n${data.hint}` : reason);
         return;
       }
       setCandidates(data.candidates as TopicCandidate[]);
@@ -105,7 +108,7 @@ export function GenerateBoard() {
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="flex-1">
               <div className="font-medium">Couldn’t generate topics</div>
-              <div className="opacity-90">{genError}</div>
+              <div className="whitespace-pre-line opacity-90">{genError}</div>
             </div>
             <Button variant="outline" size="sm" onClick={generate}>
               <RotateCcw className="h-3.5 w-3.5" /> Retry
