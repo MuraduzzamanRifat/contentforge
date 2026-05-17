@@ -12,8 +12,7 @@ import { uid } from "./utils";
 import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./scenes";
 
 export type Section =
-  | "generate" | "workflow" | "sheet" | "production" | "publish"
-  | "calendar" | "analytics" | "settings";
+  | "generate" | "sheet" | "workflow" | "production" | "publish" | "settings";
 
 interface State {
   rows: Content[];

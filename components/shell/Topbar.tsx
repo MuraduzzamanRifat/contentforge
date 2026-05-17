@@ -3,7 +3,7 @@
 import {
   Search, Sun, Moon, Plug, CheckCircle2, Sparkles, Settings, Loader2,
   Cloud, CloudCheck, CloudOff, CloudAlert,
-  Workflow as WorkflowIcon, Table2, Clapperboard, Megaphone, Calendar, BarChart3,
+  Workflow as WorkflowIcon, Table2, Clapperboard, Megaphone,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useStore, type Section } from "@/lib/store";
@@ -23,8 +23,6 @@ const NAV: { id: Section; label: string; icon: typeof Table2 }[] = [
   { id: "workflow",   label: "Workflow",   icon: WorkflowIcon },
   { id: "production", label: "Production",  icon: Clapperboard },
   { id: "publish",    label: "Publish",    icon: Megaphone },
-  { id: "calendar",   label: "Calendar",   icon: Calendar },
-  { id: "analytics",  label: "Analytics",  icon: BarChart3 },
   { id: "settings",   label: "Settings",   icon: Settings },
 ];
 

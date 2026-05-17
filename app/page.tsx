@@ -11,8 +11,6 @@ import { PreviewPanel } from "@/components/sheet/PreviewPanel";
 import { WorkflowBoard } from "@/components/workflow/WorkflowBoard";
 import { ProductionBoard } from "@/components/production/ProductionBoard";
 import { PublishBoard } from "@/components/publish/PublishBoard";
-import { CalendarView } from "@/components/calendar/CalendarView";
-import { AnalyticsView } from "@/components/analytics/AnalyticsView";
 import { SettingsView } from "@/components/settings/SettingsView";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
@@ -64,8 +62,6 @@ export default function Page() {
         {section === "workflow"  && <WorkflowBoard />}
         {section === "production" && <ProductionBoard />}
         {section === "publish"   && <PublishBoard />}
-        {section === "calendar"  && <CalendarView />}
-        {section === "analytics" && <AnalyticsView />}
         {section === "settings"  && <SettingsView />}
       </main>
     </div>

@@ -108,10 +108,10 @@ test.describe("seeded board", () => {
 
   test("topbar nav switches the main view (no sidebar)", async ({ page }) => {
     await expect(page.locator('header nav button:has-text("Workflow")')).toBeVisible();
-    await page.locator('nav button:has-text("Calendar")').first().click();
-    await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
-    await page.locator('nav button:has-text("Analytics")').first().click();
-    await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
+    await page.locator('nav button:has-text("Production")').first().click();
+    await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
+    await page.locator('nav button:has-text("Publish")').first().click();
+    await expect(page.getByRole("heading", { name: "Publish" })).toBeVisible();
     await page.locator('nav button:has-text("Settings")').first().click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await page.locator('nav button:has-text("Sheet")').first().click();
