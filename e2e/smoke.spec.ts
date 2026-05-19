@@ -6,7 +6,7 @@ import { test, expect, type Page } from "@playwright/test";
  *   - Empty Sheet shows its honest empty-state CTA
  *   - With a board present (injected as a deterministic fixture — the 260-row
  *     seed was retired in favour of AI-invented topics), the Sheet / filters /
- *     preview / Workflow / Production / Publish flows still work
+ *     preview / Production / Publish flows still work (Workflow removed)
  *   - Connections panel renders
  *
  * Fixtures are injected via localStorage in the exact zustand-persist shape
@@ -107,7 +107,7 @@ test.describe("seeded board", () => {
   });
 
   test("topbar nav switches the main view (no sidebar)", async ({ page }) => {
-    await expect(page.locator('header nav button:has-text("Workflow")')).toBeVisible();
+    await expect(page.locator('header nav button:has-text("Production")')).toBeVisible();
     await page.locator('nav button:has-text("Production")').first().click();
     await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
     await page.locator('nav button:has-text("Publish")').first().click();
@@ -158,39 +158,19 @@ test.describe("seeded board", () => {
     await expect(page.locator(".chip:has-text('PUBLISHED')").first()).toBeVisible();
   });
 
-  test("workflow board: kanban renders, drawer opens, no infinite loop", async ({ page }) => {
-    await page.locator('nav button:has-text("Workflow")').first().click();
-    await expect(page.getByRole("heading", { name: "Workflow" })).toBeVisible();
-    for (const col of ["Draft", "In Review", "Rejected", "Approved", "Ready for Production"]) {
-      await expect(page.getByText(col, { exact: true }).first()).toBeVisible();
-    }
-    await page.locator("div.overflow-y-auto > button").first().click();
-    await expect(page.getByText(/클라이언트용 요약/)).toBeVisible();
-    await expect(page.getByText(/Discussion \(0\)/)).toBeVisible();
-    await expect(page.getByRole("button", { name: /Send to client review/i })).toBeVisible();
-  });
-
-  test("production: empty until a script is locked for production", async ({ page }) => {
+  test("production lists scripted rows directly (no Workflow gate)", async ({ page }) => {
     await page.locator('nav button:has-text("Production")').first().click();
     await expect(page.getByRole("heading", { name: "Production" })).toBeVisible();
-    await expect(page.getByText(/Nothing in production/)).toBeVisible();
+    // Seeded rows carry scripts → Production-ready straight away.
+    await expect(
+      page.getByText("Kodo: The Japanese Art of Listening to Incense").first(),
+    ).toBeVisible();
   });
 
-  test("publish: empty until approved, then the approved row appears", async ({ page }) => {
+  test("publish: empty until a video is finalized", async ({ page }) => {
     await page.locator('nav button:has-text("Publish")').first().click();
     await expect(page.getByRole("heading", { name: "Publish" })).toBeVisible();
     await expect(page.getByText(/Nothing to publish yet/)).toBeVisible();
-
-    await page.locator('nav button:has-text("Workflow")').first().click();
-    await page.locator("div.overflow-y-auto > button").first().click();
-    await page.getByRole("button", { name: /Send to client review/i }).click();
-    await page.waitForTimeout(400);
-    await page.locator("div.overflow-y-auto").nth(1).locator("button").first().click();
-    await page.locator("button.bg-emerald-600", { hasText: "Approve" }).first().click();
-    await page.waitForTimeout(400);
-
-    await page.locator('nav button:has-text("Publish")').first().click();
-    await expect(page.locator('button:has-text("APPROVED")').first()).toBeVisible();
   });
 
   test("at least one row has a duplicate-overlap flag", async ({ page }) => {

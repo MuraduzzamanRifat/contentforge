@@ -8,7 +8,6 @@ import { KpiStrip } from "@/components/sheet/KpiStrip";
 import { Toolbar } from "@/components/sheet/Toolbar";
 import { ContentSheet } from "@/components/sheet/ContentSheet";
 import { PreviewPanel } from "@/components/sheet/PreviewPanel";
-import { WorkflowBoard } from "@/components/workflow/WorkflowBoard";
 import { ProductionBoard } from "@/components/production/ProductionBoard";
 import { PublishBoard } from "@/components/publish/PublishBoard";
 import { SettingsView } from "@/components/settings/SettingsView";
@@ -59,7 +58,6 @@ export default function Page() {
           </>
         )}
 
-        {section === "workflow"  && <WorkflowBoard />}
         {section === "production" && <ProductionBoard />}
         {section === "publish"   && <PublishBoard />}
         {section === "settings"  && <SettingsView />}

@@ -12,9 +12,10 @@ import { TRACK_STYLES, STATUS_STYLES, type Content, type ProductionChecklist } f
 import { parseScenes } from "@/lib/scenes";
 import { buildScenePrompt } from "@/lib/flow-prompt";
 
-/** Rows whose script is locked for production (Workflow "Ready") or already in production. */
+/** Any row that has a script and isn't published yet is Production-ready
+ *  (Workflow/approval gate removed — Generate → Sheet → Production). */
 function inProduction(c: Content): boolean {
-  return (c.status === "APPROVED" && c.productionLocked === true) || !!c.production;
+  return (!!c.script?.trim() && c.status !== "PUBLISHED") || !!c.production;
 }
 
 const CHECK_META: { key: keyof ProductionChecklist; label: string; icon: typeof Mic }[] = [
@@ -61,7 +62,8 @@ export function ProductionBoard() {
         <div className="flex-1 overflow-auto">
           {list.length === 0 && (
             <p className="p-6 text-center text-[12px] text-muted-foreground">
-              Nothing in production. Lock an approved script for production in Workflow.
+              Nothing to produce yet. Approve a topic in Generate — it lands in the Sheet
+              with a script and appears here.
             </p>
           )}
           {list.map((r) => {
@@ -101,7 +103,7 @@ export function ProductionBoard() {
       {!row ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
           <Clapperboard className="h-6 w-6 opacity-40" />
-          Select a locked script to produce.
+          Select a video to produce.
         </div>
       ) : (
         <div className="flex flex-1 flex-col overflow-hidden">
@@ -119,7 +121,7 @@ export function ProductionBoard() {
           <div className="flex-1 space-y-4 overflow-auto p-4">
             {!hasScript && (
               <p className="rounded-md border border-dashed border-border px-3 py-10 text-center text-[12px] text-muted-foreground">
-                This video has no script yet. Generate + approve it in Workflow before producing.
+                This video has no script yet. Approve it in Generate before producing.
               </p>
             )}
 

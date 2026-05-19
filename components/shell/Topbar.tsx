@@ -3,14 +3,13 @@
 import {
   Search, Sun, Moon, Plug, CheckCircle2, Sparkles, Settings, Loader2,
   Cloud, CloudCheck, CloudOff, CloudAlert,
-  Workflow as WorkflowIcon, Table2, Clapperboard, Megaphone,
+  Table2, Clapperboard, Megaphone,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useStore, type Section } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { ConnectionsDialog } from "./ConnectionsDialog";
 import { cn } from "@/lib/utils";
-import { waitingOn, workflowColumn } from "@/lib/workflow";
 
 interface ConnState {
   provider: "claude-subscription" | "openai" | "claude-api" | "none";
@@ -20,7 +19,6 @@ interface ConnState {
 const NAV: { id: Section; label: string; icon: typeof Table2 }[] = [
   { id: "generate",   label: "Generate",   icon: Sparkles },
   { id: "sheet",      label: "Sheet",      icon: Table2 },
-  { id: "workflow",   label: "Workflow",   icon: WorkflowIcon },
   { id: "production", label: "Production",  icon: Clapperboard },
   { id: "publish",    label: "Publish",    icon: Megaphone },
   { id: "settings",   label: "Settings",   icon: Settings },
@@ -31,11 +29,8 @@ export function Topbar() {
   const section = useStore((s) => s.section);
   const setSection = useStore((s) => s.setSection);
   const rowCount = useStore((s) => s.rows.length);
-  const onMeCount = useStore(
-    (s) => s.rows.filter((r) => workflowColumn(r) !== null && waitingOn(r, s.comments[r.id] ?? []) === "me").length
-  );
   const productionCount = useStore(
-    (s) => s.rows.filter((r) => ((r.status === "APPROVED" && r.productionLocked) || !!r.production) && !r.production?.finalizedAt).length
+    (s) => s.rows.filter((r) => !!r.script?.trim() && r.status !== "PUBLISHED" && !r.production?.finalizedAt).length
   );
   const syncStatus = useStore((s) => s.syncStatus);
   const lastSyncedAt = useStore((s) => s.lastSyncedAt);
@@ -69,9 +64,7 @@ export function Topbar() {
     : "Not connected";
 
   const badge = (id: Section) =>
-    id === "workflow" && onMeCount > 0 ? { n: onMeCount, c: "bg-blue-600" }
-    : id === "production" && productionCount > 0 ? { n: productionCount, c: "bg-violet-600" }
-    : null;
+    id === "production" && productionCount > 0 ? { n: productionCount, c: "bg-violet-600" } : null;
 
   return (
     <>

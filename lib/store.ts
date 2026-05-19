@@ -12,7 +12,7 @@ import { uid } from "./utils";
 import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./scenes";
 
 export type Section =
-  | "generate" | "sheet" | "workflow" | "production" | "publish" | "settings";
+  | "generate" | "sheet" | "production" | "publish" | "settings";
 
 interface State {
   rows: Content[];
@@ -69,13 +69,6 @@ interface Actions {
   replaceBoard: (b: { rows: Content[]; comments: Record<string, ReviewComment[]> }) => void;
   setSyncStatus: (s: State["syncStatus"], at?: string) => void;
 
-  // Workflow stage transitions
-  sendToReview: (id: string) => void;
-  approveScript: (id: string) => void;
-  rejectScript: (id: string) => void;
-  reopenScript: (id: string) => void;       // Rejected/anything → back to Draft
-  lockForProduction: (id: string) => void;  // Approved → Ready
-  unlockProduction: (id: string) => void;
 
   // Stage 2 — Production (Google Flow manual)
   initProduction: (id: string) => void;            // parse scenes from approved script
@@ -240,46 +233,6 @@ export const useStore = create<State & Actions>()(
 
       reset: () => set({ rows: [], selectedId: null, selectedIds: new Set() }),
 
-      sendToReview: (id) =>
-        set((s) => ({
-          rows: s.rows.map((r) =>
-            r.id === id ? { ...r, status: "REVIEW", rejected: false, updatedAt: new Date().toISOString() } : r
-          ),
-        })),
-      approveScript: (id) =>
-        set((s) => ({
-          rows: s.rows.map((r) =>
-            r.id === id
-              ? { ...r, status: "APPROVED", rejected: false, productionLocked: false, updatedAt: new Date().toISOString() }
-              : r
-          ),
-        })),
-      rejectScript: (id) =>
-        set((s) => ({
-          rows: s.rows.map((r) =>
-            r.id === id ? { ...r, status: "DRAFT", rejected: true, updatedAt: new Date().toISOString() } : r
-          ),
-        })),
-      reopenScript: (id) =>
-        set((s) => ({
-          rows: s.rows.map((r) =>
-            r.id === id
-              ? { ...r, status: "DRAFT", rejected: false, productionLocked: false, updatedAt: new Date().toISOString() }
-              : r
-          ),
-        })),
-      lockForProduction: (id) =>
-        set((s) => ({
-          rows: s.rows.map((r) =>
-            r.id === id ? { ...r, status: "APPROVED", productionLocked: true, updatedAt: new Date().toISOString() } : r
-          ),
-        })),
-      unlockProduction: (id) =>
-        set((s) => ({
-          rows: s.rows.map((r) =>
-            r.id === id ? { ...r, productionLocked: false, updatedAt: new Date().toISOString() } : r
-          ),
-        })),
 
       initProduction: (id) =>
         set((s) => ({
