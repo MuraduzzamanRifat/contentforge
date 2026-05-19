@@ -6,7 +6,7 @@ import { BASELINE_TAGS } from "./project-config";
 import type { TopicCandidate } from "./topic-intake";
 import type {
   Content, ContentPatch, ContentStatus, Track, ReviewComment, Role, Lang, SeoMeta,
-  SceneStatus, ProductionChecklist,
+  SceneStatus, SceneState, ProductionChecklist,
 } from "./types";
 import { uid } from "./utils";
 import { parseScenes, extractAnimationDirection, extractOnScreenText } from "./scenes";
@@ -74,6 +74,7 @@ interface Actions {
   initProduction: (id: string) => void;            // parse scenes from approved script
   setSceneStatus: (id: string, sceneId: string, status: SceneStatus) => void;
   setSceneClip: (id: string, sceneId: string, clipUrl: string | undefined) => void;
+  patchScene: (id: string, sceneId: string, p: Partial<SceneState>) => void;
   toggleProductionCheck: (id: string, key: keyof ProductionChecklist) => void;
   finalizeProduction: (id: string) => void;        // → videoApproved, eligible for Publish
 
@@ -289,6 +290,24 @@ export const useStore = create<State & Actions>()(
                       sc.id === sceneId
                         ? { ...sc, clipUrl, status: clipUrl ? "clip-ready" : "pending" }
                         : sc
+                    ),
+                  },
+                  updatedAt: new Date().toISOString(),
+                }
+              : r
+          ),
+        })),
+
+      patchScene: (id, sceneId, p) =>
+        set((s) => ({
+          rows: s.rows.map((r) =>
+            r.id === id && r.production
+              ? {
+                  ...r,
+                  production: {
+                    ...r.production,
+                    scenes: r.production.scenes.map((sc) =>
+                      sc.id === sceneId ? { ...sc, ...p } : sc
                     ),
                   },
                   updatedAt: new Date().toISOString(),

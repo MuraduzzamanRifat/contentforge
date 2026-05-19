@@ -64,7 +64,7 @@ export interface Content {
   publishAt?: string | null;   // ISO; set when scheduled
 }
 
-export type SceneStatus = "pending" | "prompt-copied" | "clip-ready";
+export type SceneStatus = "pending" | "prompt-copied" | "generating" | "clip-ready";
 
 export interface SceneState {
   id: string;
@@ -72,7 +72,8 @@ export interface SceneState {
   timecode: string;   // "0:00–0:08"
   text: string;
   status: SceneStatus;
-  clipUrl?: string;   // object URL of the manually-rendered Flow clip
+  clipUrl?: string;   // manual object URL OR the Veo-proxied video URL
+  veoOp?: string;     // in-flight Veo long-running operation name
   note?: string;
 }
 

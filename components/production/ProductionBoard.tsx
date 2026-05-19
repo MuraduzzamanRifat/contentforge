@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Clapperboard, Film, ExternalLink, CheckCircle2, Circle, Upload, X,
   Mic, Captions, Music, Layers, Scissors, ListChecks, AlertTriangle, RotateCcw,
+  Sparkles, Loader2, Volume2,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { TRACK_STYLES, STATUS_STYLES, type Content, type ProductionChecklist } from "@/lib/types";
 import { parseScenes } from "@/lib/scenes";
 import { buildScenePrompt } from "@/lib/flow-prompt";
+import { EditorTools } from "./EditorTools";
 
 /** Any row that has a script and isn't published yet is Production-ready
  *  (Workflow/approval gate removed — Generate → Sheet → Production). */
@@ -36,11 +38,77 @@ export function ProductionBoard() {
   const setSceneClip = useStore((s) => s.setSceneClip);
   const toggleCheck = useStore((s) => s.toggleProductionCheck);
   const finalize = useStore((s) => s.finalizeProduction);
+  const patchScene = useStore((s) => s.patchScene);
 
   const list = useMemo(() => rows.filter(inProduction), [rows]);
   const row = useMemo(() => rows.find((r) => r.id === selectedId && inProduction(r)) ?? null, [rows, selectedId]);
 
   const [flowCopied, setFlowCopied] = useState<string | null>(null);
+  const [veoMsg, setVeoMsg] = useState<string | null>(null);
+
+  // Poll in-flight Veo generations for the selected row (one clip = real $;
+  // only ever started by an explicit per-scene click below).
+  useEffect(() => {
+    const t = setInterval(async () => {
+      const st = useStore.getState();
+      const r = st.rows.find((x) => x.id === selectedId);
+      const gen = r?.production?.scenes.filter((s) => s.status === "generating" && s.veoOp) ?? [];
+      for (const sc of gen) {
+        try {
+          const res = await fetch(`/api/ai/veo?op=${encodeURIComponent(sc.veoOp!)}`);
+          const j = await res.json();
+          if (!res.ok) {
+            st.patchScene(r!.id, sc.id, { status: "pending", veoOp: undefined });
+            setVeoMsg(j.hint ? `${j.error} — ${j.hint}` : j.detail || j.error || `HTTP ${res.status}`);
+          } else if (j.done && j.videoUri) {
+            st.patchScene(r!.id, sc.id, {
+              status: "clip-ready",
+              clipUrl: `/api/ai/veo?file=${encodeURIComponent(j.videoUri)}`,
+              veoOp: undefined,
+            });
+          } else if (j.done) {
+            st.patchScene(r!.id, sc.id, { status: "pending", veoOp: undefined });
+            setVeoMsg(j.error || "Veo finished but returned no video");
+          }
+        } catch {
+          /* transient — keep polling next tick */
+        }
+      }
+    }, 8000);
+    return () => clearInterval(t);
+  }, [selectedId]);
+
+  async function startVeo(sc: { id: string }, prompt: string) {
+    if (!row) return;
+    setVeoMsg(null);
+    patchScene(row.id, sc.id, { status: "generating" });
+    try {
+      const res = await fetch("/api/ai/veo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        patchScene(row.id, sc.id, { status: "pending" });
+        setVeoMsg(j.hint ? `${j.error} — ${j.hint}` : j.detail || j.error || `HTTP ${res.status}`);
+        return;
+      }
+      patchScene(row.id, sc.id, { status: "generating", veoOp: j.operation });
+    } catch (e) {
+      patchScene(row.id, sc.id, { status: "pending" });
+      setVeoMsg(e instanceof Error ? e.message : "Veo start failed");
+    }
+  }
+
+  function playVO(text: string) {
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    } catch {
+      /* no TTS in this browser — the VO script is still downloadable */
+    }
+  }
 
   const prod = row?.production;
   const sceneCount = prod?.scenes.length ?? 0;
@@ -143,6 +211,12 @@ export function ProductionBoard() {
                   </section>
                 )}
 
+                {veoMsg && (
+                  <p className="flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {veoMsg}
+                  </p>
+                )}
+
                 {/* Scene timeline */}
                 <section>
                   <div className="mb-2 flex items-center justify-between">
@@ -165,12 +239,16 @@ export function ProductionBoard() {
                                 "chip ml-auto",
                                 sc.status === "clip-ready"
                                   ? "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                  : sc.status === "generating"
+                                  ? "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 animate-pulse"
                                   : sc.status === "prompt-copied"
                                   ? "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300"
                                   : "bg-muted text-muted-foreground ring-border"
                               )}
                             >
-                              {sc.status === "clip-ready" ? "clip ready" : sc.status === "prompt-copied" ? "prompt copied" : "pending"}
+                              {sc.status === "clip-ready" ? "clip ready"
+                                : sc.status === "generating" ? "generating…"
+                                : sc.status === "prompt-copied" ? "prompt copied" : "pending"}
                             </span>
                           </div>
                           <p className="mb-2 line-clamp-3 text-[12px] leading-relaxed text-foreground/80">{sc.text}</p>
@@ -192,6 +270,32 @@ export function ProductionBoard() {
                               <Film className="mr-1 h-3.5 w-3.5" />
                               {flowCopied === sc.id ? "Prompt copied" : "Copy prompt + open Flow"}
                               <ExternalLink className="ml-1 h-3 w-3 opacity-60" />
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="cursor-pointer"
+                              disabled={sc.status === "generating"}
+                              onClick={() => startVeo(sc, buildScenePrompt(row, parsed))}
+                              title="Generate this scene with Veo (paid — one clip per click)"
+                            >
+                              {sc.status === "generating" ? (
+                                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="mr-1 h-3.5 w-3.5" />
+                              )}
+                              {sc.status === "generating" ? "Generating…" : "Generate with Veo"}
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="cursor-pointer text-muted-foreground"
+                              onClick={() => playVO(sc.text)}
+                              title="Preview voiceover (browser text-to-speech)"
+                            >
+                              <Volume2 className="mr-1 h-3.5 w-3.5" /> VO
                             </Button>
 
                             {sc.clipUrl ? (
@@ -267,6 +371,8 @@ export function ProductionBoard() {
                     })}
                   </div>
                 </section>
+
+                <EditorTools row={row} />
 
                 {prod.onScreenText.length > 0 && (
                   <section className="rounded-lg border border-amber-200/70 bg-amber-50/40 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
