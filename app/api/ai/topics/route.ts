@@ -5,6 +5,7 @@ import {
   buildTopicsSystemPrompt, buildTopicsUserMessage, parseTopics, TOPICS_PROMPT_VERSION,
 } from "@/lib/prompts/topics";
 import { assessTopic } from "@/lib/topic-intake";
+import { checkSources } from "@/lib/source-check";
 import { AGARWOOD_PLAN } from "@/lib/agarwood-plan";
 import type { Content } from "@/lib/types";
 
@@ -57,9 +58,15 @@ export async function POST(req: NextRequest) {
         { status: 502 },
       );
     }
-    const candidates = drafts
-      .slice(0, count)
-      .map((d) => assessTopic(d, randomUUID(), corpus));
+    // Build candidates, then liveness-check sources in parallel. Each source
+    // gets a short timeout + HEAD/GET fallback (see lib/source-check.ts).
+    const candidates = await Promise.all(
+      drafts.slice(0, count).map(async (d) => {
+        const base = assessTopic(d, randomUUID(), corpus);
+        const linkChecks = await checkSources(d.sources);
+        return { ...base, linkChecks };
+      }),
+    );
     return NextResponse.json({
       candidates,
       provider: r.provider,

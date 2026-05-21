@@ -171,6 +171,7 @@ function Card({
 }) {
   const [copied, setCopied] = useState(false);
   const flagged = c.compliance.level === "flag";
+  const dead = c.linkChecks?.filter((l) => l.ok === false).length ?? 0;
 
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -201,6 +202,14 @@ function Card({
                 title={`Lexically similar to an existing topic (${Math.round(c.duplicate.score * 100)}%)`}
               >
                 <AlertTriangle className="h-3 w-3" /> ≈ {c.duplicate.title} ({Math.round(c.duplicate.score * 100)}%)
+              </span>
+            )}
+            {dead > 0 && (
+              <span
+                className="flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                title={c.linkChecks?.filter((l) => l.ok === false).map((l) => `${l.status ?? l.reason ?? "unreachable"}: ${l.url}`).join("\n")}
+              >
+                <AlertTriangle className="h-3 w-3" /> {dead} dead source{dead > 1 ? "s" : ""}
               </span>
             )}
           </div>
@@ -254,9 +263,31 @@ function Card({
                 Sources
               </div>
               <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-[12px] text-muted-foreground">
-                {c.sources.map((s, i) => (
-                  <li key={i} className="break-words">{s}</li>
-                ))}
+                {c.sources.map((s, i) => {
+                  const lc = c.linkChecks?.[i];
+                  return (
+                    <li key={i} className="break-words">
+                      {lc?.ok === true && (
+                        <CheckCircle2
+                          className="mr-1 inline h-3 w-3 align-[-1px] text-emerald-600 dark:text-emerald-400"
+                          aria-label="reachable"
+                        />
+                      )}
+                      {lc?.ok === false && (
+                        <AlertTriangle
+                          className="mr-1 inline h-3 w-3 align-[-1px] text-red-600 dark:text-red-400"
+                          aria-label="dead link"
+                        />
+                      )}
+                      <span className={cn(lc?.ok === false && "line-through opacity-70")}>{s}</span>
+                      {lc?.ok === false && (
+                        <span className="ml-1 text-[10px] font-medium text-red-600 dark:text-red-400">
+                          [{lc.status ?? lc.reason ?? "unreachable"}]
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
             </>
           )}

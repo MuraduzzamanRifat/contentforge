@@ -9,6 +9,7 @@ import { scanBanned } from "./seo-preflight";
 import { findDuplicates, severity } from "./dedupe";
 import type { TopicDraft } from "./prompts/topics";
 import type { Content } from "./types";
+import type { LinkCheck } from "./source-check";
 
 export interface TopicCandidate extends TopicDraft {
   id: string;
@@ -16,6 +17,8 @@ export interface TopicCandidate extends TopicDraft {
   compliance: { level: "ok" | "flag"; hits: string[] };
   /** Closest existing video when the overlap is non-trivial, else null. */
   duplicate: { title: string; score: number; severity: "medium" | "high" } | null;
+  /** Liveness of each source (server-checked, aligned by index with sources[]). */
+  linkChecks?: LinkCheck[];
 }
 
 /** Minimal Content view of a draft so dedupe.ts can score it. */
