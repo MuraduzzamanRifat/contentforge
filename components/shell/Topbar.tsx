@@ -166,7 +166,7 @@ export function Topbar() {
         >
           {aiOk ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Plug className="h-3.5 w-3.5" />}
           <span className="hidden lg:inline">AI</span>
-          <span className="hidden text-[10px] opacity-80 lg:inline">· {aiShort}</span>
+          <span className="hidden text-[10px] opacity-80 lg:inline">{" · "}{aiShort}</span>
         </button>
 
         <Button

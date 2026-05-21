@@ -18,7 +18,15 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "ContentForge",
-  description: "AI content production dashboard — spreadsheet-driven video pipeline",
+  description:
+    "AI video pipeline for the agarwood / Daracheon YouTube channel — Generate → Sheet → Production → Publish.",
+  openGraph: {
+    title: "ContentForge",
+    description:
+      "AI video pipeline for the agarwood / Daracheon YouTube channel.",
+    type: "website",
+  },
+  twitter: { card: "summary", title: "ContentForge" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

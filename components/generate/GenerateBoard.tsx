@@ -29,6 +29,9 @@ export function GenerateBoard() {
   const [approved, setApproved] = useState(0);
 
   const busy = genStatus === "generating";
+  // In the pure empty state (no candidates, no error) the centered CTA already
+  // explains + offers Generate — so don't double the header subtitle/button.
+  const showHeader = candidates.length > 0 || genStatus === "error";
 
   async function generate() {
     setGenStatus("generating");
@@ -71,22 +74,26 @@ export function GenerateBoard() {
           <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
             <Sparkles className="h-4 w-4 text-primary" /> Generate topics
           </h2>
-          <p className="text-[11px] text-muted-foreground">
-            AI proposes {BATCH} factual agarwood topics with full scripts — deduped vs the 260-plan
-            &amp; approved, Daracheon-compliant. Approve to send into the Sheet as a Draft.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {candidates.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={clear} disabled={busy}>
-              <X className="h-3.5 w-3.5" /> Clear
-            </Button>
+          {showHeader && (
+            <p className="text-[11px] text-muted-foreground">
+              AI proposes {BATCH} factual agarwood topics with full scripts — deduped vs the 260-plan
+              &amp; approved, Daracheon-compliant. Approve to send into the Sheet as a Draft.
+            </p>
           )}
-          <Button size="sm" onClick={generate} disabled={busy}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {candidates.length > 0 ? `Regenerate ${BATCH}` : `Generate ${BATCH} topics`}
-          </Button>
         </div>
+        {showHeader && (
+          <div className="flex items-center gap-2">
+            {candidates.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clear} disabled={busy}>
+                <X className="h-3.5 w-3.5" /> Clear
+              </Button>
+            )}
+            <Button size="sm" onClick={generate} disabled={busy}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {candidates.length > 0 ? `Regenerate ${BATCH}` : `Generate ${BATCH} topics`}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4">
